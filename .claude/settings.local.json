@@ -29,7 +29,16 @@
       "PowerShell(Stop-Process -Id 25500 -Force -ErrorAction SilentlyContinue; Start-Sleep 2; $r = Invoke-WebRequest -Uri \"http://localhost:3000/\" -MaximumRedirection 0 -ErrorAction SilentlyContinue; $r.StatusCode)",
       "Bash(curl -s -L http://localhost:3000/login)",
       "Bash(curl -s -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@ello.com\",\"password\":\"admin123\"}')",
-      "Bash(mkdir -p \"C:/Users/Jefferson/OneDrive/Documentos/GitHub/Fluxo de Caixa Grupo Ello/app/api/usuarios/[id]\")"
+      "Bash(mkdir -p \"C:/Users/Jefferson/OneDrive/Documentos/GitHub/Fluxo de Caixa Grupo Ello/app/api/usuarios/[id]\")",
+      "mcp__68d3221f-8df5-4958-ae51-796a8b2bd053__list_projects",
+      "mcp__68d3221f-8df5-4958-ae51-796a8b2bd053__get_project",
+      "mcp__68d3221f-8df5-4958-ae51-796a8b2bd053__get_cost",
+      "mcp__Claude_in_Chrome__list_connected_browsers",
+      "mcp__Claude_in_Chrome__select_browser",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "mcp__Claude_in_Chrome__navigate",
+      "mcp__Claude_in_Chrome__computer",
+      "mcp__Claude_in_Chrome__javascript_tool"
     ]
   }
 }
