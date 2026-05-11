@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  GESTOR
+  OPERADOR
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(OPERADOR)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lancamentos Lancamento[]
+  auditLogs   AuditLog[]
+}
+
+model Filial {
+  id        String   @id @default(cuid())
+  nome      String
+  codigo    String   @unique
+  ativa     Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  lancamentos  Lancamento[]
+  saldos       Saldo[]
+  funcionarios Funcionario[]
+  faturamentos Faturamento[]
+}
+
+enum TipoGrupo {
+  ENTRADA
+  SAIDA
+}
+
+model Grupo {
+  id    Int       @id
+  nome  String
+  tipo  TipoGrupo
+  ordem Int
+
+  subgrupos   Subgrupo[]
+  lancamentos Lancamento[]
+}
+
+model Subgrupo {
+  id      String @id @default(cuid())
+  grupoId Int
+  nome    String
+  ordem   Int
+
+  grupo       Grupo        @relation(fields: [grupoId], references: [id])
+  lancamentos Lancamento[]
+}
+
+model Lancamento {
+  id          String   @id @default(cuid())
+  filialId    String
+  data        DateTime
+  grupoId     Int
+  subgrupoId  String?
+  descricao   String
+  valor       Decimal
+  tipo        TipoLancamento
+  observacao  String?
+  competencia String
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  filial    Filial     @relation(fields: [filialId], references: [id])
+  grupo     Grupo      @relation(fields: [grupoId], references: [id])
+  subgrupo  Subgrupo?  @relation(fields: [subgrupoId], references: [id])
+  user      User       @relation(fields: [userId], references: [id])
+  auditLogs AuditLog[]
+
+  @@index([filialId, competencia])
+  @@index([data])
+}
+
+enum TipoLancamento {
+  ENTRADA
+  SAIDA
+}
+
+model Saldo {
+  id            String   @id @default(cuid())
+  filialId      String
+  data          DateTime
+  saldoInicial  Decimal  @default(0)
+  saldoFinal    Decimal  @default(0)
+  totalEntradas Decimal  @default(0)
+  totalSaidas   Decimal  @default(0)
+  competencia   String
+
+  filial Filial @relation(fields: [filialId], references: [id])
+
+  @@unique([filialId, data])
+  @@index([filialId, competencia])
+}
+
+model Funcionario {
+  id          String   @id @default(cuid())
+  filialId    String
+  nome        String
+  cargo       String
+  salarioBase Decimal
+  trienio     Decimal  @default(0)
+  ativo       Boolean  @default(true)
+  admissao    DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  filial Filial      @relation(fields: [filialId], references: [id])
+  folhas FolhaItem[]
+}
+
+model Folha {
+  id          String   @id @default(cuid())
+  competencia String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  itens FolhaItem[]
+}
+
+model FolhaItem {
+  id            String  @id @default(cuid())
+  folhaId       String
+  funcionarioId String
+  salarioBase   Decimal
+  comissao      Decimal @default(0)
+  trienio       Decimal @default(0)
+  dsr           Decimal @default(0)
+  totalBruto    Decimal
+  inssPatronal  Decimal @default(0)
+  entidades     Decimal @default(0)
+  fgts          Decimal @default(0)
+  totalEncargos Decimal
+  totalPagar    Decimal
+
+  folha       Folha       @relation(fields: [folhaId], references: [id])
+  funcionario Funcionario @relation(fields: [funcionarioId], references: [id])
+}
+
+model Faturamento {
+  id          String   @id @default(cuid())
+  filialId    String
+  competencia String
+  valorNF     Decimal
+  descricao   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  filial Filial @relation(fields: [filialId], references: [id])
+
+  @@index([filialId, competencia])
+}
+
+model Meta {
+  id          String  @id @default(cuid())
+  nome        String
+  descricao   String?
+  tipo        String
+  valorMeta   Decimal
+  operador    String
+  grupoRef    Int?
+  baseCalculo String
+  ativa       Boolean @default(true)
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String
+  lancamentoId String?
+  acao         String
+  dadosAntes   Json?
+  dadosDepois  Json?
+  createdAt    DateTime @default(now())
+
+  user       User        @relation(fields: [userId], references: [id])
+  lancamento Lancamento? @relation(fields: [lancamentoId], references: [id])
+}

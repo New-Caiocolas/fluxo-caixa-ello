@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --no-src-dir --import-alias \"@/*\" --yes)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --no-src-dir --import-alias \"@/*\" --yes --name fluxo-de-caixa-ello)",
+      "Bash(Get-ChildItem)",
+      "Bash(Select-Object Name)",
+      "Bash(npx prisma *)",
+      "PowerShell(Get-PSDrive C | Select-Object Used, Free, @{N='FreeGB';E={[math]::Round\\($_.Free/1GB,1\\)}})",
+      "PowerShell($d = Get-PSDrive -Name C; Write-Host \"Used: $\\([math]::Round\\($d.Used/1GB,1\\)\\) GB | Free: $\\([math]::Round\\($d.Free/1GB,1\\)\\) GB\")",
+      "Bash(npm cache *)",
+      "Bash(npx tsc *)",
+      "Bash(DATABASE_URL=\"postgresql://dummy:dummy@localhost:5432/dummy\" npx prisma generate)",
+      "Bash(xargs grep -l \"config\")",
+      "Bash(npm run *)",
+      "Bash(mv temp-app/.env temp-app/.env.example temp-app/AGENTS.md temp-app/CLAUDE.md temp-app/README.md temp-app/eslint.config.mjs temp-app/middleware.ts temp-app/next-env.d.ts temp-app/next.config.ts temp-app/package.json temp-app/package-lock.json temp-app/postcss.config.mjs temp-app/prisma.config.ts temp-app/tsconfig.json .)",
+      "Bash(mv temp-app/app temp-app/components temp-app/lib temp-app/prisma temp-app/public temp-app/types .)",
+      "Bash(mv temp-app/node_modules .)",
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(xargs grep -l \"proxy\\\\|middleware\")",
+      "Bash(pg_isready)",
+      "Bash(psql --version)",
+      "PowerShell(Test-NetConnection -ComputerName localhost -Port 5432 -WarningAction SilentlyContinue)",
+      "Bash(DATABASE_URL=\"file:./prisma/dev.db\" npx prisma generate)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/login)",
+      "Bash(curl -s http://localhost:3000/login)",
+      "Bash(taskkill /PID 25500 /F)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
+      "PowerShell(Stop-Process -Id 25500 -Force -ErrorAction SilentlyContinue; Start-Sleep 2; $r = Invoke-WebRequest -Uri \"http://localhost:3000/\" -MaximumRedirection 0 -ErrorAction SilentlyContinue; $r.StatusCode)",
+      "Bash(curl -s -L http://localhost:3000/login)",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@ello.com\",\"password\":\"admin123\"}')",
+      "Bash(mkdir -p \"C:/Users/Jefferson/OneDrive/Documentos/GitHub/Fluxo de Caixa Grupo Ello/app/api/usuarios/[id]\")"
+    ]
+  }
+}
