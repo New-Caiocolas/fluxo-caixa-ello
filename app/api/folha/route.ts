@@ -129,6 +129,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  if (user.role === "OPERADOR") return NextResponse.json({ error: "Sem permissão para editar a folha" }, { status: 403 });
 
   const { competencia, itens } = await req.json();
 

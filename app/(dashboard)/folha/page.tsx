@@ -5,7 +5,8 @@ import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { formatCurrency, mesNome } from "@/lib/utils";
-import { Plus, Users, AlertTriangle } from "lucide-react";
+import { useAuth } from "@/lib/context/AuthContext";
+import { Plus, Users, AlertTriangle, Pencil, X, Save, UserPen } from "lucide-react";
 import { format } from "date-fns";
 
 interface FolhaItem {
@@ -60,7 +61,23 @@ interface FuncForm {
   admissao: string;
 }
 
+function calcularFolha(salarioBase: number, trienioPerc: number, comissao: number) {
+  const trienio = salarioBase * trienioPerc;
+  const baseComDSR = salarioBase + comissao + trienio;
+  const dsr = (baseComDSR / 30) * 4;
+  const totalBruto = baseComDSR + dsr;
+  const inssPatronal = totalBruto * 0.20;
+  const entidades = totalBruto * 0.058;
+  const fgts = totalBruto * 0.085;
+  const totalEncargos = inssPatronal + entidades + fgts;
+  const totalPagar = totalBruto + totalEncargos;
+  return { trienio, dsr, totalBruto, inssPatronal, entidades, fgts, totalEncargos, totalPagar };
+}
+
 export default function FolhaPage() {
+  const { user } = useAuth();
+  const canEdit = user?.role === "ADMIN" || user?.role === "GESTOR";
+
   const hoje = new Date();
   const [competencia, setCompetencia] = useState(
     `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`
@@ -69,11 +86,17 @@ export default function FolhaPage() {
   const [loading, setLoading] = useState(false);
   const [filiais, setFiliais] = useState<Array<{ id: string; nome: string }>>([]);
   const [modalFuncOpen, setModalFuncOpen] = useState(false);
+  const [funcEditandoId, setFuncEditandoId] = useState<string | null>(null);
   const [funcForm, setFuncForm] = useState<FuncForm>({
     filialId: "", nome: "", cargo: "", salarioBase: 0, trienio: 0,
     admissao: format(new Date(), "yyyy-MM-dd"),
   });
   const [salvandoFunc, setSalvandoFunc] = useState(false);
+
+  // Modo edição
+  const [modoEdicao, setModoEdicao] = useState(false);
+  const [comissoesEdit, setComissoesEdit] = useState<Record<string, number>>({});
+  const [salvandoFolha, setSalvandoFolha] = useState(false);
 
   useEffect(() => {
     fetch("/api/filiais").then((r) => r.json()).then(setFiliais);
@@ -92,22 +115,147 @@ export default function FolhaPage() {
 
   useEffect(() => { fetchFolha(); }, [fetchFolha]);
 
+  // Ao entrar em modo edição, popula comissões com valores atuais
+  function entrarEdicao() {
+    if (!data) return;
+    const map: Record<string, number> = {};
+    for (const item of data.folhaItens) {
+      map[item.funcionarioId] = item.comissao || 0;
+    }
+    setComissoesEdit(map);
+    setModoEdicao(true);
+  }
+
+  function cancelarEdicao() {
+    setModoEdicao(false);
+    setComissoesEdit({});
+  }
+
+  // Recalcula itens com comissões editadas
+  function getItensCalculados(): FolhaItem[] {
+    if (!data) return [];
+    return data.folhaItens.map((item) => {
+      const comissao = modoEdicao
+        ? (comissoesEdit[item.funcionarioId] ?? item.comissao)
+        : item.comissao;
+      const calc = calcularFolha(item.salarioBase, 0, comissao);
+      // triênio já está no salárioBase efetivo (veio da API), recalcula do zero
+      // Na edição recalculamos passando trienio=0 pois o totalBruto já vem calculado
+      // Melhor: buscar a % de triênio do funcionário
+      // Para simplificar, usamos o triênio existente no item e recalculamos apenas pelo comissão
+      const trienioVal = item.trienio; // mantém triênio calculado
+      const baseComDSR = item.salarioBase + comissao + trienioVal;
+      const dsr = (baseComDSR / 30) * 4;
+      const totalBruto = baseComDSR + dsr;
+      const inssPatronal = totalBruto * 0.20;
+      const entidades = totalBruto * 0.058;
+      const fgts = totalBruto * 0.085;
+      const totalEncargos = inssPatronal + entidades + fgts;
+      const totalPagar = totalBruto + totalEncargos;
+      return { ...item, comissao, dsr, totalBruto, inssPatronal, entidades, fgts, totalEncargos, totalPagar };
+    });
+  }
+
+  async function salvarFolha() {
+    if (!data) return;
+    setSalvandoFolha(true);
+    try {
+      const itens = getItensCalculados().map((item) => ({
+        funcionarioId: item.funcionarioId,
+        salarioBase: item.salarioBase,
+        comissao: item.comissao,
+        trienio: item.trienio,
+        dsr: item.dsr,
+        totalBruto: item.totalBruto,
+        inssPatronal: item.inssPatronal,
+        entidades: item.entidades,
+        fgts: item.fgts,
+        totalEncargos: item.totalEncargos,
+        totalPagar: item.totalPagar,
+      }));
+      const res = await fetch("/api/folha", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ competencia, itens }),
+      });
+      if (res.ok) {
+        setModoEdicao(false);
+        setComissoesEdit({});
+        await fetchFolha();
+      }
+    } finally {
+      setSalvandoFolha(false);
+    }
+  }
+
+  function abrirCadastro() {
+    setFuncEditandoId(null);
+    setFuncForm({ filialId: "", nome: "", cargo: "", salarioBase: 0, trienio: 0, admissao: format(new Date(), "yyyy-MM-dd") });
+    setModalFuncOpen(true);
+  }
+
+  function abrirEdicaoFuncionario(item: FolhaItem) {
+    // Busca os dados completos do funcionário na lista
+    const func = data?.funcionarios.find((f) => f.id === item.funcionarioId);
+    if (!func) return;
+    setFuncEditandoId(item.funcionarioId);
+    setFuncForm({
+      filialId: item.funcionario.filialId,
+      nome: func.nome,
+      cargo: func.cargo,
+      salarioBase: func.salarioBase,
+      trienio: func.trienio,
+      admissao: format(new Date(), "yyyy-MM-dd"), // fallback; admissão não vem na listagem
+    });
+    setModalFuncOpen(true);
+  }
+
   async function salvarFuncionario() {
     setSalvandoFunc(true);
     try {
-      const res = await fetch("/api/funcionarios", {
-        method: "POST",
+      const url = funcEditandoId
+        ? `/api/funcionarios?id=${funcEditandoId}`
+        : "/api/funcionarios";
+      const method = funcEditandoId ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(funcForm),
       });
       if (res.ok) {
         setModalFuncOpen(false);
+        setFuncEditandoId(null);
         fetchFolha();
       }
     } finally {
       setSalvandoFunc(false);
     }
   }
+
+  // Gera itens para exibição (calculados no modo edição, originais no modo leitura)
+  const itensExibicao = modoEdicao ? getItensCalculados() : (data?.folhaItens ?? []);
+
+  // Reagrupa por filial para exibição
+  const porFilialExibicao = (() => {
+    const map: Record<string, PorFilial> = {};
+    for (const item of itensExibicao) {
+      const fId = item.funcionario.filialId;
+      if (!map[fId]) {
+        map[fId] = { filialId: fId, filialNome: item.funcionario.filial.nome, itens: [], totalBruto: 0, totalEncargos: 0, totalPagar: 0 };
+      }
+      map[fId].itens.push(item);
+      map[fId].totalBruto += item.totalBruto;
+      map[fId].totalEncargos += item.totalEncargos;
+      map[fId].totalPagar += item.totalPagar;
+    }
+    return Object.values(map);
+  })();
+
+  const totaisExibicao = {
+    totalBruto: itensExibicao.reduce((s, i) => s + i.totalBruto, 0),
+    totalEncargos: itensExibicao.reduce((s, i) => s + i.totalEncargos, 0),
+    totalPagar: itensExibicao.reduce((s, i) => s + i.totalPagar, 0),
+  };
 
   const [ano, mes] = competencia.split("-").map(Number);
 
@@ -122,36 +270,63 @@ export default function FolhaPage() {
         <input
           type="month"
           value={competencia}
-          onChange={(e) => setCompetencia(e.target.value)}
+          onChange={(e) => { setCompetencia(e.target.value); cancelarEdicao(); }}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
           suppressHydrationWarning
+          disabled={modoEdicao}
         />
-        <Button
-          variant="outline"
-          size="sm"
-          className="ml-auto"
-          onClick={() => setModalFuncOpen(true)}
-        >
-          <Plus size={14} /> Cadastrar Funcionário
-        </Button>
+
+        <div className="ml-auto flex items-center gap-2">
+          {canEdit && !modoEdicao && data && data.folhaItens.length > 0 && (
+            <Button variant="outline" size="sm" onClick={entrarEdicao}>
+              <Pencil size={14} /> Editar Folha
+            </Button>
+          )}
+          {modoEdicao && (
+            <>
+              <Button variant="outline" size="sm" onClick={cancelarEdicao}>
+                <X size={14} /> Cancelar
+              </Button>
+              <Button size="sm" loading={salvandoFolha} onClick={salvarFolha}>
+                <Save size={14} /> Salvar Folha
+              </Button>
+            </>
+          )}
+          {canEdit && (
+            <Button variant="outline" size="sm" onClick={abrirCadastro}>
+              <Plus size={14} /> Cadastrar Funcionário
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Banner modo edição */}
+      {modoEdicao && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center gap-2 text-amber-800 text-sm">
+          <Pencil size={15} />
+          <span>
+            <strong>Modo edição ativo</strong> — edite as comissões e clique em{" "}
+            <strong>Salvar Folha</strong> para confirmar.
+          </span>
+        </div>
+      )}
 
       {/* Totais gerais */}
       {data && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <p className="text-sm text-gray-500 mb-1">Total Bruto (todos funcionários)</p>
-            <p className="text-2xl font-bold text-gray-900">{formatCurrency(data.totais.totalBruto)}</p>
+            <p className="text-2xl font-bold text-gray-900">{formatCurrency(totaisExibicao.totalBruto)}</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <p className="text-sm text-gray-500 mb-1">Total Encargos (INSS + FGTS)</p>
-            <p className="text-2xl font-bold text-orange-600">{formatCurrency(data.totais.totalEncargos)}</p>
+            <p className="text-2xl font-bold text-orange-600">{formatCurrency(totaisExibicao.totalEncargos)}</p>
           </div>
           <div className="bg-white rounded-xl border border-red-200 bg-red-50 p-5">
             <p className="text-sm text-red-600 mb-1 font-medium flex items-center gap-1">
               <AlertTriangle size={14} /> Total a Pagar (Empresa)
             </p>
-            <p className="text-2xl font-bold text-red-700">{formatCurrency(data.totais.totalPagar)}</p>
+            <p className="text-2xl font-bold text-red-700">{formatCurrency(totaisExibicao.totalPagar)}</p>
           </div>
         </div>
       )}
@@ -161,16 +336,18 @@ export default function FolhaPage() {
         <div className="flex items-center justify-center py-20">
           <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : data?.porFilial.length === 0 ? (
+      ) : porFilialExibicao.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <Users size={40} className="text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500">Nenhum funcionário cadastrado</p>
-          <Button className="mt-4" onClick={() => setModalFuncOpen(true)}>
-            <Plus size={16} /> Cadastrar primeiro funcionário
-          </Button>
+          {canEdit && (
+            <Button className="mt-4" onClick={abrirCadastro}>
+              <Plus size={16} /> Cadastrar primeiro funcionário
+            </Button>
+          )}
         </div>
       ) : (
-        data?.porFilial.map((filial) => (
+        porFilialExibicao.map((filial) => (
           <div key={filial.filialId} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 bg-gray-900 text-white flex items-center justify-between">
               <h3 className="font-bold text-base">{filial.filialNome}</h3>
@@ -187,7 +364,9 @@ export default function FolhaPage() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Funcionário</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Cargo</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Salário Base</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Comissão</th>
+                    <th className={`text-right px-4 py-3 text-xs font-semibold uppercase ${modoEdicao ? "text-amber-700 bg-amber-50" : "text-gray-600"}`}>
+                      {modoEdicao ? "Comissão ✏️" : "Comissão"}
+                    </th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Triênio</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase">DSR</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Total Bruto</th>
@@ -195,16 +374,35 @@ export default function FolhaPage() {
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Entidades</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase">FGTS</th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Total Encargos</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase bg-red-50 text-red-700">Total a Pagar</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-red-700 uppercase bg-red-50">Total a Pagar</th>
+                    {canEdit && <th className="px-4 py-3 w-10" />}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filial.itens.map((item, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
+                    <tr key={i} className={`${modoEdicao ? "hover:bg-amber-50" : "hover:bg-gray-50"}`}>
                       <td className="px-4 py-3 font-medium text-gray-900">{item.funcionario.nome}</td>
                       <td className="px-4 py-3 text-gray-500">{item.funcionario.cargo}</td>
                       <td className="px-4 py-3 text-right">{formatCurrency(item.salarioBase)}</td>
-                      <td className="px-4 py-3 text-right">{formatCurrency(item.comissao)}</td>
+                      <td className={`px-4 py-3 text-right ${modoEdicao ? "bg-amber-50" : ""}`}>
+                        {modoEdicao ? (
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={comissoesEdit[item.funcionarioId] ?? item.comissao}
+                            onChange={(e) =>
+                              setComissoesEdit((prev) => ({
+                                ...prev,
+                                [item.funcionarioId]: Number(e.target.value),
+                              }))
+                            }
+                            className="w-28 text-right border border-amber-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                          />
+                        ) : (
+                          formatCurrency(item.comissao)
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-right">{formatCurrency(item.trienio)}</td>
                       <td className="px-4 py-3 text-right">{formatCurrency(item.dsr)}</td>
                       <td className="px-4 py-3 text-right font-semibold text-gray-900">{formatCurrency(item.totalBruto)}</td>
@@ -213,6 +411,17 @@ export default function FolhaPage() {
                       <td className="px-4 py-3 text-right text-orange-600">{formatCurrency(item.fgts)}</td>
                       <td className="px-4 py-3 text-right font-semibold text-orange-700">{formatCurrency(item.totalEncargos)}</td>
                       <td className="px-4 py-3 text-right font-bold text-red-700 bg-red-50">{formatCurrency(item.totalPagar)}</td>
+                      {canEdit && (
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            title="Editar funcionário"
+                            onClick={() => abrirEdicaoFuncionario(item)}
+                            className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-emerald-600 transition-colors"
+                          >
+                            <UserPen size={15} />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                   <tr className="bg-gray-900 text-white font-bold">
@@ -221,6 +430,7 @@ export default function FolhaPage() {
                     <td colSpan={3} />
                     <td className="px-4 py-3 text-right text-orange-300">{formatCurrency(filial.totalEncargos)}</td>
                     <td className="px-4 py-3 text-right text-red-300">{formatCurrency(filial.totalPagar)}</td>
+                    {canEdit && <td />}
                   </tr>
                 </tbody>
               </table>
@@ -230,7 +440,7 @@ export default function FolhaPage() {
       )}
 
       {/* Modal cadastro funcionário */}
-      <Modal open={modalFuncOpen} onClose={() => setModalFuncOpen(false)} title="Cadastrar Funcionário" size="lg">
+      <Modal open={modalFuncOpen} onClose={() => { setModalFuncOpen(false); setFuncEditandoId(null); }} title={funcEditandoId ? "Editar Funcionário" : "Cadastrar Funcionário"} size="lg">
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -297,8 +507,8 @@ export default function FolhaPage() {
             </div>
           </div>
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setModalFuncOpen(false)}>Cancelar</Button>
-            <Button loading={salvandoFunc} onClick={salvarFuncionario}>Salvar</Button>
+            <Button variant="outline" onClick={() => { setModalFuncOpen(false); setFuncEditandoId(null); }}>Cancelar</Button>
+            <Button loading={salvandoFunc} onClick={salvarFuncionario}>{funcEditandoId ? "Salvar Alterações" : "Cadastrar"}</Button>
           </div>
         </div>
       </Modal>
