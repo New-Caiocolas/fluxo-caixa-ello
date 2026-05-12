@@ -48,10 +48,12 @@ export async function POST(req: NextRequest) {
     select: { id: true, name: true, email: true, role: true, createdAt: true },
   });
 
-  // Envia e-mail de boas-vindas em background (não bloqueia a resposta)
-  sendWelcomeEmail({ name, email, password, role }).catch((err) =>
-    console.error("[POST /api/usuarios] Falha no e-mail de boas-vindas:", err)
-  );
+  // Aguarda o envio antes de retornar — funções serverless encerram ao enviar a resposta
+  try {
+    await sendWelcomeEmail({ name, email, password, role });
+  } catch (err) {
+    console.error("[POST /api/usuarios] Falha no e-mail de boas-vindas:", err);
+  }
 
   return NextResponse.json(usuario, { status: 201 });
 }
