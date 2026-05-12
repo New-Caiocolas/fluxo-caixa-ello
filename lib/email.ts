@@ -11,7 +11,7 @@ function getTransporter() {
   });
 }
 
-const APP_URL = process.env.APP_URL || "https://fluxo-caixa-ello.vercel.app";
+const APP_URL = process.env.APP_URL || "https://grupoello-fc.vercel.app";
 
 export async function sendWelcomeEmail({
   name,
