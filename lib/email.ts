@@ -1,14 +1,17 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-// Inicialização lazy — evita erro de "Missing API key" durante o build do Next.js
-function getResend() {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) throw new Error("RESEND_API_KEY não configurado");
-  return new Resend(apiKey);
+function getTransporter() {
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+  if (!user || !pass) throw new Error("GMAIL_USER ou GMAIL_APP_PASSWORD não configurados");
+
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: { user, pass },
+  });
 }
 
 const APP_URL = process.env.APP_URL || "https://fluxo-caixa-ello.vercel.app";
-const FROM_EMAIL = process.env.FROM_EMAIL || "Grupo ELLO <onboarding@resend.dev>";
 
 export async function sendWelcomeEmail({
   name,
@@ -178,17 +181,14 @@ export async function sendWelcomeEmail({
 </body>
 </html>`;
 
-  const { data, error } = await getResend().emails.send({
-    from: FROM_EMAIL,
+  const transporter = getTransporter();
+
+  await transporter.sendMail({
+    from: `"Grupo ELLO" <${process.env.GMAIL_USER}>`,
     to: email,
     subject: "Bem-vindo ao Sistema de Fluxo de Caixa · Grupo ELLO",
     html,
   });
 
-  if (error) {
-    console.error("[sendWelcomeEmail] Erro ao enviar e-mail:", error);
-    return { ok: false, error };
-  }
-
-  return { ok: true, data };
+  return { ok: true };
 }
