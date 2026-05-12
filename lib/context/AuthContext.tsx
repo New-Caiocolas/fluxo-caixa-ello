@@ -8,6 +8,7 @@ interface User {
   name: string;
   email: string;
   role: string;
+  mustChangePassword?: boolean;
 }
 
 interface AuthContextType {
@@ -15,6 +16,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -24,14 +26,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  async function fetchMe() {
+    const res = await fetch("/api/auth/me");
+    if (res.ok) {
+      const data = await res.json();
+      setUser(data);
+      return data as User;
+    }
+    setUser(null);
+    return null;
+  }
+
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        setUser(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    fetchMe().finally(() => setLoading(false));
   }, []);
 
   async function login(email: string, password: string) {
@@ -48,7 +55,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const data = await res.json();
     setUser(data.user);
-    router.push("/dashboard");
+
+    if (data.user.mustChangePassword) {
+      router.push("/trocar-senha");
+    } else {
+      router.push("/dashboard");
+    }
   }
 
   async function logout() {
@@ -57,8 +69,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/login");
   }
 
+  async function refreshUser() {
+    await fetchMe();
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
