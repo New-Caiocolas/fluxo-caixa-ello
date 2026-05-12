@@ -1,6 +1,11 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Inicialização lazy — evita erro de "Missing API key" durante o build do Next.js
+function getResend() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error("RESEND_API_KEY não configurado");
+  return new Resend(apiKey);
+}
 
 const APP_URL = process.env.APP_URL || "https://fluxo-caixa-ello.vercel.app";
 const FROM_EMAIL = process.env.FROM_EMAIL || "Grupo ELLO <onboarding@resend.dev>";
@@ -173,7 +178,7 @@ export async function sendWelcomeEmail({
 </body>
 </html>`;
 
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await getResend().emails.send({
     from: FROM_EMAIL,
     to: email,
     subject: "Bem-vindo ao Sistema de Fluxo de Caixa · Grupo ELLO",
