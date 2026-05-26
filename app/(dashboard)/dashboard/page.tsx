@@ -266,6 +266,20 @@ export default function DashboardPage() {
               </div>
             )}
 
+            {/* Filtro de ano */}
+            <div className="flex flex-wrap items-center gap-4">
+              <select
+                value={ano}
+                onChange={(e) => setAno(Number(e.target.value))}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                suppressHydrationWarning
+              >
+                {[2023, 2024, 2025, 2026].map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+
             {/* KPIs */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <KPICard
@@ -303,19 +317,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Recebimento vs Faturamento</CardTitle>
-                    <select
-                      value={ano}
-                      onChange={(e) => setAno(Number(e.target.value))}
-                      className="text-xs border border-gray-200 rounded px-2 py-1"
-                      suppressHydrationWarning
-                    >
-                      {[2023, 2024, 2025, 2026].map((y) => (
-                        <option key={y} value={y}>{y}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <CardTitle>Recebimento vs Faturamento</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={280}>
