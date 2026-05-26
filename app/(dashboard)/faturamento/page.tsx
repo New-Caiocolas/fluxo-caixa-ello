@@ -5,11 +5,12 @@ import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useFilialAtiva, useFiliais } from "@/lib/hooks/useFilial";
+import { useAuth } from "@/lib/context/AuthContext";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
-import { Plus, AlertTriangle } from "lucide-react";
+import { Plus, AlertTriangle, Edit, Trash2 } from "lucide-react";
 
 interface ComparativoItem {
   mes: string; competencia: string; faturado: number; recebido: number;
@@ -21,7 +22,14 @@ interface FaturamentoItem {
   descricao?: string; filial: { nome: string };
 }
 
+const formVazio = {
+  filialId: "", competencia: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`,
+  valorNF: 0, descricao: "",
+};
+
 export default function FaturamentoPage() {
+  const { user } = useAuth();
+  const canEdit = user?.role === "ADMIN" || user?.role === "GESTOR";
   const { filialAtiva } = useFilialAtiva();
   const { filiais } = useFiliais();
   const [ano, setAno] = useState(new Date().getFullYear());
@@ -29,10 +37,9 @@ export default function FaturamentoPage() {
   const [faturamentos, setFaturamentos] = useState<FaturamentoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({
-    filialId: "", competencia: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`,
-    valorNF: 0, descricao: "",
-  });
+  const [editItem, setEditItem] = useState<FaturamentoItem | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [form, setForm] = useState(formVazio);
   const [salvando, setSalvando] = useState(false);
 
   const fetchFaturamento = useCallback(async () => {
@@ -47,15 +54,34 @@ export default function FaturamentoPage() {
 
   useEffect(() => { fetchFaturamento(); }, [fetchFaturamento]);
 
+  function abrirNovo() {
+    setEditItem(null);
+    setForm(formVazio);
+    setModalOpen(true);
+  }
+
+  function abrirEdicao(item: FaturamentoItem) {
+    setEditItem(item);
+    setForm({ filialId: item.filialId, competencia: item.competencia, valorNF: item.valorNF, descricao: item.descricao || "" });
+    setModalOpen(true);
+  }
+
   async function handleSalvar() {
     setSalvando(true);
     try {
-      const res = await fetch("/api/faturamento", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+      const url = editItem ? `/api/faturamento/${editItem.id}` : "/api/faturamento";
+      const method = editItem ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method, headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, valorNF: Number(form.valorNF) }),
       });
-      if (res.ok) { setModalOpen(false); fetchFaturamento(); }
+      if (res.ok) { setModalOpen(false); setEditItem(null); fetchFaturamento(); }
     } finally { setSalvando(false); }
+  }
+
+  async function handleDelete(id: string) {
+    const res = await fetch(`/api/faturamento/${id}`, { method: "DELETE" });
+    if (res.ok) { setDeleteId(null); fetchFaturamento(); }
   }
 
   const totalFaturado = comparativo.reduce((a, m) => a + m.faturado, 0);
@@ -72,7 +98,9 @@ export default function FaturamentoPage() {
           suppressHydrationWarning>
           {[2023,2024,2025,2026].map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
-        <Button className="ml-auto" onClick={() => setModalOpen(true)}><Plus size={16} /> Lançar NF</Button>
+        {canEdit && (
+          <Button className="ml-auto" onClick={abrirNovo}><Plus size={16} /> Lançar NF</Button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -107,6 +135,7 @@ export default function FaturamentoPage() {
         </ResponsiveContainer>
       </div>
 
+      {/* Tabela comparativa */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b"><h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Tabela Comparativa</h3></div>
         <div className="overflow-x-auto">
@@ -150,7 +179,65 @@ export default function FaturamentoPage() {
         </div>
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Lançar Nota Fiscal" size="md">
+      {/* Tabela de registros individuais */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b">
+          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Registros de NF</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Filial</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Competência</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Descrição</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Valor NF</th>
+                {canEdit && <th className="text-right px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Ações</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {loading ? (
+                <tr><td colSpan={canEdit ? 5 : 4} className="text-center py-8 text-gray-400">
+                  <div className="inline-block w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                </td></tr>
+              ) : faturamentos.length === 0 ? (
+                <tr><td colSpan={canEdit ? 5 : 4} className="text-center py-8 text-gray-400 text-sm">Nenhum registro encontrado</td></tr>
+              ) : faturamentos.map((f) => (
+                <tr key={f.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 font-medium text-gray-900">{f.filial?.nome}</td>
+                  <td className="px-4 py-3 text-gray-600">{f.competencia}</td>
+                  <td className="px-4 py-3 text-gray-500">{f.descricao || "—"}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-blue-600">{formatCurrency(Number(f.valorNF))}</td>
+                  {canEdit && (
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => abrirEdicao(f)}
+                          className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors"
+                          title="Editar"
+                        >
+                          <Edit size={15} />
+                        </button>
+                        <button
+                          onClick={() => setDeleteId(f.id)}
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
+                          title="Excluir"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Modal criar/editar */}
+      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setEditItem(null); }}
+        title={editItem ? "Editar NF" : "Lançar Nota Fiscal"} size="md">
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Filial *</label>
@@ -168,7 +255,7 @@ export default function FaturamentoPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Valor da NF *</label>
-            <input type="number" step="0.01" min="0" value={form.valorNF||""}
+            <input type="number" step="0.01" min="0" value={form.valorNF || ""}
               onChange={(e) => setForm((f) => ({ ...f, valorNF: Number(e.target.value) }))}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
@@ -178,9 +265,22 @@ export default function FaturamentoPage() {
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
-            <Button loading={salvando} onClick={handleSalvar}>Salvar</Button>
+            <Button variant="outline" onClick={() => { setModalOpen(false); setEditItem(null); }}>Cancelar</Button>
+            <Button loading={salvando} onClick={handleSalvar}>
+              {editItem ? "Salvar Alterações" : "Salvar"}
+            </Button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Modal de confirmação de exclusão */}
+      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="Confirmar exclusão" size="sm">
+        <p className="text-gray-600 text-sm mb-6">
+          Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.
+        </p>
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" onClick={() => setDeleteId(null)}>Cancelar</Button>
+          <Button variant="danger" onClick={() => deleteId && handleDelete(deleteId)}>Excluir</Button>
         </div>
       </Modal>
     </div>

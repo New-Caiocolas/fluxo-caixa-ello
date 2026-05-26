@@ -98,6 +98,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  if (user.role === "OPERADOR") return NextResponse.json({ error: "Sem permissão para lançar faturamento" }, { status: 403 });
 
   const { filialId, competencia, valorNF, descricao } = await req.json();
 
