@@ -7,12 +7,15 @@ import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { FormLancamento } from "@/components/lancamentos/FormLancamento";
 import { useFilialAtiva } from "@/lib/hooks/useFilial";
+import { useAuth } from "@/lib/context/AuthContext";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Lancamento, LancamentoForm } from "@/types";
 import { Plus, Edit, Trash2, Search, Filter } from "lucide-react";
 import { format } from "date-fns";
 
 export default function LancamentosPage() {
+  const { user } = useAuth();
+  const canEdit = user?.role === "ADMIN" || user?.role === "GESTOR";
   const { filialAtiva } = useFilialAtiva();
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [total, setTotal] = useState(0);
@@ -116,11 +119,11 @@ export default function LancamentosPage() {
             <p className="text-xs text-gray-500">Entradas: <span className="text-emerald-600 font-semibold">{formatCurrency(totaisVisiveis.entradas)}</span></p>
             <p className="text-xs text-gray-500">Saídas: <span className="text-red-600 font-semibold">{formatCurrency(totaisVisiveis.saidas)}</span></p>
           </div>
-          <Button
-            onClick={() => { setEditItem(undefined); setModalOpen(true); }}
-          >
-            <Plus size={16} /> Novo Lançamento
-          </Button>
+          {canEdit && (
+            <Button onClick={() => { setEditItem(undefined); setModalOpen(true); }}>
+              <Plus size={16} /> Novo Lançamento
+            </Button>
+          )}
         </div>
       </div>
 
@@ -183,22 +186,24 @@ export default function LancamentosPage() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => { setEditItem(l); setModalOpen(true); }}
-                          className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors"
-                          title="Editar"
-                        >
-                          <Edit size={15} />
-                        </button>
-                        <button
-                          onClick={() => setDeleteId(l.id)}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
-                          title="Excluir"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
+                      {canEdit && (
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => { setEditItem(l); setModalOpen(true); }}
+                            className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors"
+                            title="Editar"
+                          >
+                            <Edit size={15} />
+                          </button>
+                          <button
+                            onClick={() => setDeleteId(l.id)}
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
+                            title="Excluir"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))

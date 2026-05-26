@@ -26,6 +26,7 @@ export async function PUT(
 ) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  if (user.role === "OPERADOR") return NextResponse.json({ error: "Sem permissão para editar lançamentos" }, { status: 403 });
 
   const { id } = await params;
   const body = await req.json();
@@ -72,6 +73,7 @@ export async function DELETE(
 ) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  if (user.role === "OPERADOR") return NextResponse.json({ error: "Sem permissão para excluir lançamentos" }, { status: 403 });
 
   const { id } = await params;
   const existing = await prisma.lancamento.findUnique({ where: { id } });

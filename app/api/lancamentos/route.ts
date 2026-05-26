@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  if (user.role === "OPERADOR") return NextResponse.json({ error: "Sem permissão para criar lançamentos" }, { status: 403 });
 
   try {
     const body = await req.json();
