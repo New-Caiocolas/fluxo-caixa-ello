@@ -15,7 +15,8 @@ import { format } from "date-fns";
 
 export default function LancamentosPage() {
   const { user } = useAuth();
-  const canEdit = user?.role === "ADMIN" || user?.role === "GESTOR";
+  const canEdit = user?.role === "ADMIN" || user?.role === "GESTOR" || user?.role === "OPERADOR";
+  const canDelete = user?.role === "ADMIN" || user?.role === "GESTOR";
   const { filialAtiva } = useFilialAtiva();
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [total, setTotal] = useState(0);
@@ -195,13 +196,15 @@ export default function LancamentosPage() {
                           >
                             <Edit size={15} />
                           </button>
-                          <button
-                            onClick={() => setDeleteId(l.id)}
-                            className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
-                            title="Excluir"
-                          >
-                            <Trash2 size={15} />
-                          </button>
+                          {canDelete && (
+                            <button
+                              onClick={() => setDeleteId(l.id)}
+                              className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
+                              title="Excluir"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
