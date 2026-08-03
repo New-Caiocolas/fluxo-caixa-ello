@@ -10,7 +10,6 @@ import {
   Calendar,
   BarChart3,
   Users,
-  TrendingUp,
   Settings,
   LogOut,
   ChevronLeft,
@@ -24,8 +23,6 @@ const navItems = [
   { href: "/lancamentos", label: "Lançamentos", icon: PlusCircle },
   { href: "/mensal", label: "Visão Mensal", icon: Calendar },
   { href: "/consolidado", label: "Consolidado Anual", icon: BarChart3 },
-  { href: "/folha", label: "Folha de Pagamento", icon: Users },
-  { href: "/faturamento", label: "Faturamento", icon: TrendingUp },
   { href: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { formatCurrency, mesNome } from "@/lib/utils";
@@ -74,7 +73,7 @@ function calcularFolha(salarioBase: number, trienioPerc: number, comissao: numbe
   return { trienio, dsr, totalBruto, inssPatronal, entidades, fgts, totalEncargos, totalPagar };
 }
 
-export default function FolhaPage() {
+export function AbaFolha() {
   const { user } = useAuth();
   const canEdit = user?.role === "ADMIN" || user?.role === "GESTOR";
 
@@ -260,11 +259,12 @@ export default function FolhaPage() {
   const [ano, mes] = competencia.split("-").map(Number);
 
   return (
-    <div className="p-6 space-y-6">
-      <Header
-        title={`Folha de Pagamento — ${mesNome(mes)} ${ano}`}
-        subtitle="Cálculo de salários, encargos e totais por filial"
-      />
+    <>
+      <div className="-mt-2 mb-2">
+        <p className="text-sm text-gray-500">
+          Folha de Pagamento — {mesNome(mes)} {ano}. Cálculo de salários, encargos e totais por filial.
+        </p>
+      </div>
 
       <div className="flex flex-wrap items-center gap-4">
         <input
@@ -512,6 +512,6 @@ export default function FolhaPage() {
           </div>
         </div>
       </Modal>
-    </div>
+    </>
   );
 }

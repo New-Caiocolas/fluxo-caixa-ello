@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useFilialAtiva, useFiliais } from "@/lib/hooks/useFilial";
@@ -27,7 +26,7 @@ const formVazio = {
   valorNF: 0, descricao: "",
 };
 
-export default function FaturamentoPage() {
+export function AbaFaturamento() {
   const { user } = useAuth();
   const canEdit = user?.role === "ADMIN" || user?.role === "GESTOR";
   const { filialAtiva } = useFilialAtiva();
@@ -90,8 +89,7 @@ export default function FaturamentoPage() {
   const percentMargemMedia = totalRecebido > 0 ? (totalMargem / totalRecebido) * 100 : 0;
 
   return (
-    <div className="p-6 space-y-6">
-      <Header title={`Faturamento vs Recebimento — ${ano}`} subtitle="Inadimplência e margem de contribuição" />
+    <>
       <div className="flex items-center gap-4">
         <select value={ano} onChange={(e) => setAno(Number(e.target.value))}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -283,6 +281,6 @@ export default function FaturamentoPage() {
           <Button variant="danger" onClick={() => deleteId && handleDelete(deleteId)}>Excluir</Button>
         </div>
       </Modal>
-    </div>
+    </>
   );
 }
