@@ -5,7 +5,8 @@ import { Header } from "@/components/layout/Header";
 import { KPICard } from "@/components/ui/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { useFilialAtiva } from "@/lib/hooks/useFilial";
-import { formatCurrency, formatPercent, mesNome } from "@/lib/utils";
+import { formatCurrency, formatPercent, mesNome, META_PADRAO } from "@/lib/utils";
+import { Meta } from "@/types";
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -130,6 +131,7 @@ export default function DashboardPage() {
   const { filialAtiva } = useFilialAtiva();
   const [data, setData] = useState<DashboardData | null>(null);
   const [dfcData, setDfcData] = useState<DFCMes[]>([]);
+  const [metas, setMetas] = useState<Meta[]>([]);
   const [ano, setAno] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
   const [loadingDFC, setLoadingDFC] = useState(false);
@@ -148,6 +150,12 @@ export default function DashboardPage() {
     }
   }, [filialAtiva, ano]);
 
+  const fetchMetas = useCallback(async () => {
+    if (!filialAtiva) { setMetas([]); return; }
+    const res = await fetch(`/api/metas?filialId=${filialAtiva}`);
+    if (res.ok) setMetas(await res.json());
+  }, [filialAtiva]);
+
   const fetchDFC = useCallback(async () => {
     setLoadingDFC(true);
     try {
@@ -162,11 +170,15 @@ export default function DashboardPage() {
   }, [filialAtiva, ano]);
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
+  useEffect(() => { fetchMetas(); }, [fetchMetas]);
   useEffect(() => { if (aba === "dfc") fetchDFC(); }, [aba, fetchDFC]);
 
+  const metaFluxoLivre = metas.find((m) => m.tipo === "FLUXO_LIVRE" && m.ativa)?.valorMeta ?? META_PADRAO.FLUXO_LIVRE;
+  const metaCustoDireto = metas.find((m) => m.tipo === "CUSTO_DIRETO" && m.ativa)?.valorMeta ?? META_PADRAO.CUSTO_DIRETO;
+
   const mesAtual = mesNome(new Date().getMonth() + 1);
-  const fluxoAlerta = data && data.kpis.percentFluxoLivre < 25;
-  const custoAlerta = data && data.kpis.percentCustoDireto > 50;
+  const fluxoAlerta = data && data.kpis.percentFluxoLivre < metaFluxoLivre;
+  const custoAlerta = data && data.kpis.percentCustoDireto > metaCustoDireto;
 
   // Totais anuais DFC
   const dfcAnual = {
@@ -254,13 +266,13 @@ export default function DashboardPage() {
                 {fluxoAlerta && (
                   <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-sm">
                     <AlertTriangle size={16} />
-                    Fluxo Livre abaixo de 25% do recebimento ({formatPercent(data!.kpis.percentFluxoLivre)})
+                    Fluxo Livre abaixo de {formatPercent(metaFluxoLivre, 0)} do recebimento ({formatPercent(data!.kpis.percentFluxoLivre)})
                   </div>
                 )}
                 {custoAlerta && (
                   <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 text-orange-700 px-4 py-2 rounded-lg text-sm">
                     <AlertTriangle size={16} />
-                    Custo Direto acima de 50% do faturamento ({formatPercent(data!.kpis.percentCustoDireto)})
+                    Custo Direto acima de {formatPercent(metaCustoDireto, 0)} do faturamento ({formatPercent(data!.kpis.percentCustoDireto)})
                   </div>
                 )}
               </div>
@@ -420,7 +432,7 @@ export default function DashboardPage() {
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm text-gray-600">Fluxo Livre / Recebimento</span>
                         <span className={`text-sm font-semibold ${fluxoAlerta ? "text-red-600" : "text-emerald-600"}`}>
-                          {formatPercent(data?.kpis.percentFluxoLivre || 0)} / meta 25%
+                          {formatPercent(data?.kpis.percentFluxoLivre || 0)} / meta {formatPercent(metaFluxoLivre, 0)}
                         </span>
                       </div>
                       <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -430,7 +442,7 @@ export default function DashboardPage() {
                         />
                       </div>
                       <div className="relative">
-                        <div className="absolute left-[25%] -top-1 w-0.5 h-3 bg-gray-400" />
+                        <div className="absolute -top-1 w-0.5 h-3 bg-gray-400" style={{ left: `${Math.min(metaFluxoLivre, 100)}%` }} />
                       </div>
                     </div>
 
@@ -438,7 +450,7 @@ export default function DashboardPage() {
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm text-gray-600">Custo Direto / Faturamento</span>
                         <span className={`text-sm font-semibold ${custoAlerta ? "text-red-600" : "text-emerald-600"}`}>
-                          {formatPercent(data?.kpis.percentCustoDireto || 0)} / limite 50%
+                          {formatPercent(data?.kpis.percentCustoDireto || 0)} / limite {formatPercent(metaCustoDireto, 0)}
                         </span>
                       </div>
                       <div className="h-2 bg-gray-100 rounded-full overflow-hidden">

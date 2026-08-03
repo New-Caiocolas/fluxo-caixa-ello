@@ -136,6 +136,19 @@ export interface FaturamentoItem {
   descricao?: string;
 }
 
+export interface Meta {
+  id: string;
+  filialId: string;
+  filial: Filial;
+  tipo: "FLUXO_LIVRE" | "CUSTO_DIRETO";
+  nome: string;
+  descricao?: string;
+  valorMeta: number;
+  operador: string;
+  baseCalculo: string;
+  ativa: boolean;
+}
+
 export interface User {
   id: string;
   name: string;

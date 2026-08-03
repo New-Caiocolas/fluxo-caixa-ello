@@ -37,6 +37,7 @@ model Filial {
   saldos       Saldo[]
   funcionarios Funcionario[]
   faturamentos Faturamento[]
+  metas        Meta[]
 }
 
 enum TipoGrupo {
@@ -170,6 +171,7 @@ model Faturamento {
 
 model Meta {
   id          String  @id @default(cuid())
+  filialId    String
   nome        String
   descricao   String?
   tipo        String
@@ -178,6 +180,10 @@ model Meta {
   grupoRef    Int?
   baseCalculo String
   ativa       Boolean @default(true)
+
+  filial Filial @relation(fields: [filialId], references: [id])
+
+  @@unique([filialId, tipo])
 }
 
 model AuditLog {

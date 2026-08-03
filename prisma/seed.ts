@@ -3,6 +3,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
 import { GRUPOS } from "../lib/categorias";
+import { META_PADRAO } from "../lib/utils";
 import * as dotenv from "dotenv";
 dotenv.config();
 
@@ -46,6 +47,38 @@ async function main() {
     }
   }
   console.log("Grupos e subgrupos criados");
+
+  // Metas por filial (Fluxo Livre e Custo Direto), com os valores padrão da empresa.
+  // Cada filial pode ajustar depois em Configurações.
+  for (const filial of filiais) {
+    await prisma.meta.upsert({
+      where: { filialId_tipo: { filialId: filial.id, tipo: "FLUXO_LIVRE" } },
+      update: {},
+      create: {
+        filialId: filial.id,
+        tipo: "FLUXO_LIVRE",
+        nome: "Fluxo Livre",
+        descricao: "Fluxo de Caixa Livre como percentual do Recebimento",
+        valorMeta: META_PADRAO.FLUXO_LIVRE,
+        operador: ">=",
+        baseCalculo: "RECEBIMENTO",
+      },
+    });
+    await prisma.meta.upsert({
+      where: { filialId_tipo: { filialId: filial.id, tipo: "CUSTO_DIRETO" } },
+      update: {},
+      create: {
+        filialId: filial.id,
+        tipo: "CUSTO_DIRETO",
+        nome: "Custo Direto",
+        descricao: "Custo Direto (Grupo 4) como percentual do Faturamento",
+        valorMeta: META_PADRAO.CUSTO_DIRETO,
+        operador: "<=",
+        baseCalculo: "FATURAMENTO",
+      },
+    });
+  }
+  console.log("Metas padrão criadas por filial");
 
   // Funcionários de exemplo
   const funcData = [

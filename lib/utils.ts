@@ -51,6 +51,13 @@ export function mesNome(mes: number): string {
   return meses[mes - 1];
 }
 
+// Metas padrão usadas como fallback quando a filial não tem meta configurada
+// (ou na visão consolidada "todas as filiais", onde não existe um único valor válido).
+export const META_PADRAO = {
+  FLUXO_LIVRE: 25,
+  CUSTO_DIRETO: 50,
+} as const;
+
 export function calcularFluxoOperacional(
   totalEntradas: number,
   totalPorGrupo: Record<number, number>

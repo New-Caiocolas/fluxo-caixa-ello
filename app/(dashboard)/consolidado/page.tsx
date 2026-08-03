@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
 import { useFilialAtiva } from "@/lib/hooks/useFilial";
-import { formatCurrency, formatPercent } from "@/lib/utils";
+import { formatCurrency, formatPercent, META_PADRAO } from "@/lib/utils";
 import { GRUPOS } from "@/lib/categorias";
+import { Meta } from "@/types";
 import {
   Download,
   CheckCircle2,
@@ -34,6 +35,7 @@ export default function ConsolidadoPage() {
   const [ano, setAno] = useState(new Date().getFullYear());
   const [data, setData] = useState<AnualData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [metas, setMetas] = useState<Meta[]>([]);
 
   const zero: AnualData = {
     competencia: "",
@@ -85,6 +87,16 @@ export default function ConsolidadoPage() {
   }, [filialAtiva, ano]);
 
   useEffect(() => { fetchConsolidado(); }, [fetchConsolidado]);
+
+  const fetchMetas = useCallback(async () => {
+    if (!filialAtiva) { setMetas([]); return; }
+    const res = await fetch(`/api/metas?filialId=${filialAtiva}`);
+    if (res.ok) setMetas(await res.json());
+  }, [filialAtiva]);
+
+  useEffect(() => { fetchMetas(); }, [fetchMetas]);
+
+  const metaFluxoLivre = metas.find((m) => m.tipo === "FLUXO_LIVRE" && m.ativa)?.valorMeta ?? META_PADRAO.FLUXO_LIVRE;
 
   function getGrupoTotal(grupoId: number): number {
     return data.reduce((acc, m) => acc + (m.porGrupo[grupoId] || 0), 0);
@@ -140,7 +152,7 @@ export default function ConsolidadoPage() {
   const mesAtual = hoje.getMonth(); // 0-based
 
   const mesesComDados = data.filter((m) => m.totalEntradas > 0).length;
-  const mesesMeta = data.filter((m) => m.percentFluxoLivre >= 25).length;
+  const mesesMeta = data.filter((m) => m.percentFluxoLivre >= metaFluxoLivre).length;
 
   return (
     <div className="p-6 space-y-5">
@@ -232,7 +244,7 @@ export default function ConsolidadoPage() {
       {/* Grid de metas mensais */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-gray-700">Meta Fluxo Livre ≥ 25% por mês</p>
+          <p className="text-sm font-semibold text-gray-700">Meta Fluxo Livre ≥ {formatPercent(metaFluxoLivre, 0)} por mês</p>
           <span className={cn(
             "text-xs font-medium px-2.5 py-1 rounded-full",
             mesesMeta >= 8 ? "bg-emerald-100 text-emerald-700" : mesesMeta >= 4 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"
@@ -244,7 +256,7 @@ export default function ConsolidadoPage() {
           {MESES.map((mes, i) => {
             const m = data[i];
             const pct = m?.percentFluxoLivre || 0;
-            const fluxoOk = pct >= 25;
+            const fluxoOk = pct >= metaFluxoLivre;
             const isCurrent = isCurrentYear && i === mesAtual;
             return (
               <div
@@ -493,10 +505,10 @@ export default function ConsolidadoPage() {
                     className="sticky left-0 z-10 bg-gray-50 px-3 py-3 font-bold text-gray-700 border-r border-gray-200 border-l-4 border-l-gray-400 text-xs"
                     style={{ boxShadow: "2px 0 4px rgba(0,0,0,0.06)" }}
                   >
-                    % Fluxo Livre s/ Receb. <span className="font-normal text-gray-400">(meta: ≥25%)</span>
+                    % Fluxo Livre s/ Receb. <span className="font-normal text-gray-400">(meta: ≥{formatPercent(metaFluxoLivre, 0)})</span>
                   </td>
                   {data.map((m, i) => {
-                    const ok = m.percentFluxoLivre >= 25;
+                    const ok = m.percentFluxoLivre >= metaFluxoLivre;
                     const isCurrent = isCurrentYear && i === mesAtual;
                     return (
                       <td

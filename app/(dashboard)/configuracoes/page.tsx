@@ -1,21 +1,34 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useAuth } from "@/lib/context/AuthContext";
-import { formatDate } from "@/lib/utils";
-import { Building2, Plus, Users, ShieldCheck, Trash2, TriangleAlert } from "lucide-react";
+import { formatDate, META_PADRAO } from "@/lib/utils";
+import { Meta } from "@/types";
+import { Building2, Plus, Users, ShieldCheck, Trash2, TriangleAlert, Target } from "lucide-react";
 
 interface Filial { id: string; nome: string; codigo: string; ativa: boolean; createdAt: string; }
 
+const TIPOS_META = [
+  { tipo: "FLUXO_LIVRE" as const, label: "Fluxo Livre", prefixo: "≥", sufixo: "do Recebimento" },
+  { tipo: "CUSTO_DIRETO" as const, label: "Custo Direto", prefixo: "≤", sufixo: "do Faturamento" },
+];
+
 export default function ConfiguracoesPage() {
   const { user } = useAuth();
+  const canEditMetas = user?.role === "ADMIN" || user?.role === "GESTOR";
   const [filiais, setFiliais] = useState<Filial[]>([]);
   const [modalFilialOpen, setModalFilialOpen] = useState(false);
   const [filialForm, setFilialForm] = useState({ nome: "", codigo: "" });
   const [salvando, setSalvando] = useState(false);
+
+  // Metas por filial
+  const [metas, setMetas] = useState<Meta[]>([]);
+  const [editando, setEditando] = useState<string | null>(null); // `${filialId}-${tipo}`
+  const [valorEdit, setValorEdit] = useState("");
+  const [salvandoMeta, setSalvandoMeta] = useState(false);
 
   // Limpar base
   const [modalLimparOpen, setModalLimparOpen] = useState(false);
@@ -26,6 +39,68 @@ export default function ConfiguracoesPage() {
   useEffect(() => {
     fetch("/api/filiais").then((r) => r.json()).then(setFiliais);
   }, []);
+
+  const fetchMetas = useCallback(async () => {
+    const res = await fetch("/api/metas");
+    if (res.ok) setMetas(await res.json());
+  }, []);
+
+  useEffect(() => { fetchMetas(); }, [fetchMetas]);
+
+  function getMeta(filialId: string, tipo: string): Meta | undefined {
+    return metas.find((m) => m.filialId === filialId && m.tipo === tipo);
+  }
+
+  function iniciarEdicaoMeta(filialId: string, tipo: "FLUXO_LIVRE" | "CUSTO_DIRETO") {
+    if (!canEditMetas) return;
+    const m = getMeta(filialId, tipo);
+    const padrao = tipo === "FLUXO_LIVRE" ? META_PADRAO.FLUXO_LIVRE : META_PADRAO.CUSTO_DIRETO;
+    setValorEdit(String(m?.valorMeta ?? padrao));
+    setEditando(`${filialId}-${tipo}`);
+  }
+
+  async function salvarMeta(filialId: string, tipoInfo: (typeof TIPOS_META)[number]) {
+    const valor = Number(valorEdit);
+    if (Number.isNaN(valor) || valor < 0) { setEditando(null); return; }
+    setSalvandoMeta(true);
+    try {
+      const existente = getMeta(filialId, tipoInfo.tipo);
+      if (existente) {
+        await fetch(`/api/metas/${existente.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ valorMeta: valor }),
+        });
+      } else {
+        await fetch("/api/metas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filialId,
+            tipo: tipoInfo.tipo,
+            nome: tipoInfo.label,
+            valorMeta: valor,
+            operador: tipoInfo.tipo === "FLUXO_LIVRE" ? ">=" : "<=",
+            baseCalculo: tipoInfo.tipo === "FLUXO_LIVRE" ? "RECEBIMENTO" : "FATURAMENTO",
+          }),
+        });
+      }
+      await fetchMetas();
+    } finally {
+      setSalvandoMeta(false);
+      setEditando(null);
+    }
+  }
+
+  async function toggleMetaAtiva(meta: Meta) {
+    if (!canEditMetas) return;
+    await fetch(`/api/metas/${meta.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ativa: !meta.ativa }),
+    });
+    fetchMetas();
+  }
 
   async function limparBase() {
     setLimpando(true);
@@ -117,22 +192,80 @@ export default function ConfiguracoesPage() {
         </div>
       </div>
 
-      {/* Metas configuradas */}
+      {/* Metas configuradas — por filial */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-900">Metas e Alertas</h3>
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+          <Target size={18} className="text-emerald-600" />
+          <h3 className="font-semibold text-gray-900">Metas e Alertas por Filial</h3>
+          {!canEditMetas && (
+            <span className="ml-auto text-xs text-gray-400">Somente ADMIN e GESTOR podem editar</span>
+          )}
         </div>
-        <div className="px-6 py-4 space-y-3">
-          {[
-            { meta: "Fluxo Livre ≥ 25% do Recebimento", status: "Ativo", color: "text-emerald-600" },
-            { meta: "Custo Direto ≤ 50% do Faturamento", status: "Ativo", color: "text-emerald-600" },
-            { meta: "Inadimplência ≤ 5% do Faturamento", status: "Ativo", color: "text-emerald-600" },
-          ].map((item) => (
-            <div key={item.meta} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-              <span className="text-sm text-gray-700">{item.meta}</span>
-              <span className={`text-xs font-medium ${item.color}`}>{item.status}</span>
+        <div className="divide-y divide-gray-100">
+          {filiais.map((filial) => (
+            <div key={filial.id} className="px-6 py-4 flex flex-wrap items-center gap-6">
+              <p className="font-medium text-gray-900 min-w-[140px]">{filial.nome}</p>
+              <div className="flex flex-wrap gap-6">
+                {TIPOS_META.map((tipoInfo) => {
+                  const meta = getMeta(filial.id, tipoInfo.tipo);
+                  const chave = `${filial.id}-${tipoInfo.tipo}`;
+                  const valorAtual = meta?.valorMeta ?? (tipoInfo.tipo === "FLUXO_LIVRE" ? META_PADRAO.FLUXO_LIVRE : META_PADRAO.CUSTO_DIRETO);
+                  const ativa = meta?.ativa ?? true;
+                  return (
+                    <div key={chave} className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">
+                        {tipoInfo.label} {tipoInfo.prefixo}
+                      </span>
+                      {editando === chave ? (
+                        <input
+                          type="number"
+                          autoFocus
+                          min="0"
+                          step="1"
+                          value={valorEdit}
+                          disabled={salvandoMeta}
+                          onChange={(e) => setValorEdit(e.target.value)}
+                          onBlur={() => salvarMeta(filial.id, tipoInfo)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                            if (e.key === "Escape") setEditando(null);
+                          }}
+                          className="w-16 border border-emerald-300 rounded px-1.5 py-0.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={!canEditMetas}
+                          onClick={() => iniciarEdicaoMeta(filial.id, tipoInfo.tipo)}
+                          className={`text-sm font-semibold px-1.5 py-0.5 rounded ${
+                            ativa ? "text-emerald-700" : "text-gray-400 line-through"
+                          } ${canEditMetas ? "hover:bg-emerald-50 cursor-pointer" : "cursor-default"}`}
+                        >
+                          {valorAtual}%
+                        </button>
+                      )}
+                      <span className="text-xs text-gray-400">{tipoInfo.sufixo}</span>
+                      {meta && canEditMetas && (
+                        <button
+                          type="button"
+                          title={ativa ? "Meta ativa — clique para desativar" : "Meta inativa — clique para ativar"}
+                          onClick={() => toggleMetaAtiva(meta)}
+                          className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                            ativa ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"
+                          }`}
+                        >
+                          {ativa ? "Ativo" : "Inativo"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ))}
+          {filiais.length === 0 && (
+            <div className="px-6 py-8 text-center text-gray-400 text-sm">Cadastre uma filial para configurar metas</div>
+          )}
         </div>
       </div>
 
