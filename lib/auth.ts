@@ -2,7 +2,15 @@ import { NextRequest } from "next/server";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
-const JWT_SECRET = process.env.JWT_SECRET || "ello-fluxo-caixa-secret-2025";
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error(
+      "JWT_SECRET não está configurado. Defina a variável de ambiente JWT_SECRET antes de autenticar usuários."
+    );
+  }
+  return secret;
+}
 
 export interface JWTPayload {
   userId: string;
@@ -12,12 +20,13 @@ export interface JWTPayload {
 }
 
 export function signToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: "7d" });
 }
 
 export function verifyToken(token: string): JWTPayload | null {
+  const secret = getJwtSecret();
   try {
-    return jwt.verify(token, JWT_SECRET) as JWTPayload;
+    return jwt.verify(token, secret) as JWTPayload;
   } catch {
     return null;
   }

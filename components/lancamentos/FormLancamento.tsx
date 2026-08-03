@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { GRUPOS } from "@/lib/categorias";
 import { useFiliais } from "@/lib/hooks/useFilial";
@@ -41,12 +41,22 @@ export function FormLancamento({
 
   const grupoSelecionado = GRUPOS.find((g) => g.id === Number(form.grupoId));
 
-  useEffect(() => {
+  // Ajusta tipo/subgrupo quando o grupo muda de verdade (não ao montar o form — senão
+  // editar um lançamento existente do Grupo 13, que é misto, perderia o tipo original).
+  // Segue o padrão do React de ajustar estado durante a renderização em vez de um
+  // useEffect, evitando o ciclo extra de render e a chamada de setState dentro do efeito.
+  const [grupoAnterior, setGrupoAnterior] = useState(form.grupoId);
+  if (grupoAnterior !== form.grupoId) {
+    setGrupoAnterior(form.grupoId);
     const g = GRUPOS.find((g) => g.id === Number(form.grupoId));
     if (g) {
-      setForm((f) => ({ ...f, tipo: g.tipo === "ENTRADA" ? "ENTRADA" : "SAIDA", subgrupoId: "" }));
+      if (g.permiteAmbosTipos) {
+        setForm((f) => ({ ...f, subgrupoId: "" }));
+      } else {
+        setForm((f) => ({ ...f, tipo: g.tipo === "ENTRADA" ? "ENTRADA" : "SAIDA", subgrupoId: "" }));
+      }
     }
-  }, [form.grupoId]);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -158,28 +168,42 @@ export function FormLancamento({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-          <div className="flex gap-3 mt-1">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                value="ENTRADA"
-                checked={form.tipo === "ENTRADA"}
-                onChange={() => setForm((f) => ({ ...f, tipo: "ENTRADA" }))}
-                className="accent-emerald-600"
-              />
-              <span className="text-sm text-emerald-700 font-medium">Entrada</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                value="SAIDA"
-                checked={form.tipo === "SAIDA"}
-                onChange={() => setForm((f) => ({ ...f, tipo: "SAIDA" }))}
-                className="accent-red-500"
-              />
-              <span className="text-sm text-red-700 font-medium">Saída</span>
-            </label>
-          </div>
+          {grupoSelecionado?.permiteAmbosTipos ? (
+            <div className="flex gap-3 mt-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  value="ENTRADA"
+                  checked={form.tipo === "ENTRADA"}
+                  onChange={() => setForm((f) => ({ ...f, tipo: "ENTRADA" }))}
+                  className="accent-emerald-600"
+                />
+                <span className="text-sm text-emerald-700 font-medium">Entrada</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  value="SAIDA"
+                  checked={form.tipo === "SAIDA"}
+                  onChange={() => setForm((f) => ({ ...f, tipo: "SAIDA" }))}
+                  className="accent-red-500"
+                />
+                <span className="text-sm text-red-700 font-medium">Saída</span>
+              </label>
+            </div>
+          ) : (
+            <div
+              className={
+                "mt-1 inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium border " +
+                (grupoSelecionado?.tipo === "ENTRADA"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-red-50 text-red-700 border-red-200")
+              }
+            >
+              {grupoSelecionado?.tipo === "ENTRADA" ? "Entrada" : "Saída"}
+              <span className="ml-1.5 text-xs text-gray-400 font-normal">(definido pelo grupo)</span>
+            </div>
+          )}
         </div>
       </div>
 

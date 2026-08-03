@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { calcularFluxoOperacional, calcularFluxoLivre } from "@/lib/utils";
 
 function toNum(d: unknown): number {
   return d ? Number(d) : 0;
@@ -34,15 +35,19 @@ export async function GET(req: NextRequest) {
       filialId: { in: filialIds },
       competencia: { in: competencias },
     },
-    select: { competencia: true, grupoId: true, valor: true },
+    select: { competencia: true, grupoId: true, valor: true, tipo: true },
   });
 
-  // Agrupa por competência e grupoId
+  // Agrupa por competência e grupoId. O Grupo 13 (Receitas/Despesas Financeiras) é o
+  // único que mistura entrada e saída dentro do mesmo grupo — por isso soma com sinal
+  // (entrada some, saída subtrai); os demais grupos são sempre de um único tipo.
   const porMes: Record<string, Record<number, number>> = {};
   for (const comp of competencias) porMes[comp] = {};
   for (const l of lancamentos) {
     if (!porMes[l.competencia]) continue;
-    porMes[l.competencia][l.grupoId] = (porMes[l.competencia][l.grupoId] || 0) + toNum(l.valor);
+    const val = toNum(l.valor);
+    const valorAssinado = l.grupoId === 13 ? (l.tipo === "ENTRADA" ? val : -val) : val;
+    porMes[l.competencia][l.grupoId] = (porMes[l.competencia][l.grupoId] || 0) + valorAssinado;
   }
 
   // Busca saldo inicial por mês (soma de todas as filiais)
@@ -78,9 +83,9 @@ export async function GET(req: NextRequest) {
     const totalSaidasOp =
       custosDiretos + maoDeObra + materiaisIndiretos + despesasAdm +
       pessoalAdm + proLabore + despesasComerciais + impostosVendas + outrosImpostos;
-    const caixaLiquidoOp = recebimentos - totalSaidasOp;
+    const caixaLiquidoOp = calcularFluxoOperacional(recebimentos, g);
 
-    // Atividades de Financiamento (grupo 13 — mesmo sinal da fórmula fluxoLivre)
+    // Atividades de Financiamento (grupo 13, já somado com sinal acima)
     const atividadesFinanciamento = g[13] || 0;
     const caixaLiquidoFin = atividadesFinanciamento;
 
@@ -88,7 +93,7 @@ export async function GET(req: NextRequest) {
     const atividadesInvestimento = g[14] || 0;
     const caixaLiquidoInv = -atividadesInvestimento;
 
-    const variacaoLiquida = caixaLiquidoOp + caixaLiquidoFin + caixaLiquidoInv;
+    const variacaoLiquida = calcularFluxoLivre(caixaLiquidoOp, atividadesFinanciamento, atividadesInvestimento);
     const saldoInicial = saldosPorMes[comp] || 0;
     const saldoFinal = saldoInicial + variacaoLiquida;
 

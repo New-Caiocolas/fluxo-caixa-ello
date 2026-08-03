@@ -1,8 +1,45 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { calcularFluxoOperacional, calcularFluxoLivre } from "@/lib/utils";
 function toNum(d: unknown): number {
   return d ? Number(d) : 0;
+}
+
+interface MesAcumulado {
+  recebimento: number; // Grupo 1 — único grupo que define "Recebimento"
+  porGrupo: Record<number, number>; // Grupos 4 a 12 (sempre SAÍDA)
+  grupo13Entrada: number;
+  grupo13Saida: number;
+  grupo14: number; // Investimentos (sempre SAÍDA)
+}
+
+function novoMesAcumulado(): MesAcumulado {
+  return { recebimento: 0, porGrupo: {}, grupo13Entrada: 0, grupo13Saida: 0, grupo14: 0 };
+}
+
+function acumular(mes: MesAcumulado, grupoId: number, valor: number, tipo: string) {
+  if (grupoId === 1) {
+    mes.recebimento += valor;
+  } else if (grupoId === 13) {
+    if (tipo === "ENTRADA") mes.grupo13Entrada += valor;
+    else mes.grupo13Saida += valor;
+  } else if (grupoId === 14) {
+    mes.grupo14 += valor;
+  } else {
+    mes.porGrupo[grupoId] = (mes.porGrupo[grupoId] || 0) + valor;
+  }
+}
+
+function custosOperacionais(mes: MesAcumulado): number {
+  return [4, 5, 6, 7, 8, 9, 10, 11, 12].reduce((acc, g) => acc + (mes.porGrupo[g] || 0), 0);
+}
+
+function calcularFluxos(mes: MesAcumulado) {
+  const fluxoOperacional = calcularFluxoOperacional(mes.recebimento, mes.porGrupo);
+  const grupo13Liquido = mes.grupo13Entrada - mes.grupo13Saida;
+  const fluxoLivre = calcularFluxoLivre(fluxoOperacional, grupo13Liquido, mes.grupo14);
+  return { fluxoOperacional, fluxoLivre };
 }
 
 export async function GET(req: NextRequest) {
@@ -32,56 +69,38 @@ export async function GET(req: NextRequest) {
   });
 
   // Agrupa por competência
-  const porMes: Record<string, {
-    entradas: number;
-    saidas: number;
-    porGrupo: Record<number, number>;
-  }> = {};
-
-  for (const comp of competencias) {
-    porMes[comp] = { entradas: 0, saidas: 0, porGrupo: {} };
-  }
+  const porMes: Record<string, MesAcumulado> = {};
+  for (const comp of competencias) porMes[comp] = novoMesAcumulado();
 
   for (const l of lancamentos) {
     const mes = porMes[l.competencia];
     if (!mes) continue;
-    const val = toNum(l.valor);
-    if (l.tipo === "ENTRADA") {
-      mes.entradas += val;
-    } else {
-      mes.saidas += val;
-      mes.porGrupo[l.grupoId] = (mes.porGrupo[l.grupoId] || 0) + val;
-    }
+    acumular(mes, l.grupoId, toNum(l.valor), l.tipo);
   }
 
-  // Dados mensais para gráficos
+  // Dados mensais para gráficos — restrito às atividades operacionais
+  // (Grupo 1 x Grupos 4-12); financiamento/investimento ficam na aba DFC.
   const graficoMensal = competencias.map((comp) => {
     const mes = porMes[comp];
     const [, m] = comp.split("-");
     const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-    const custosOperacionais = [4, 5, 6, 7, 8, 9, 10, 11, 12].reduce(
-      (acc, g) => acc + (mes.porGrupo[g] || 0), 0
-    );
+    const { fluxoOperacional } = calcularFluxos(mes);
     return {
       mes: meses[parseInt(m) - 1],
       competencia: comp,
-      recebimento: mes.entradas,
-      saidas: mes.saidas,
-      fluxoOperacional: mes.entradas - custosOperacionais,
+      recebimento: mes.recebimento,
+      saidas: custosOperacionais(mes),
+      fluxoOperacional,
     };
   });
 
   // KPIs do mês atual
   const mesAtual = `${ano}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
-  const mesData = porMes[mesAtual] || { entradas: 0, saidas: 0, porGrupo: {} };
+  const mesData = porMes[mesAtual] || novoMesAcumulado();
   const custosDir = toNum(mesData.porGrupo[4]);
-  const custosOperacionais = [4, 5, 6, 7, 8, 9, 10, 11, 12].reduce(
-    (acc, g) => acc + (mesData.porGrupo[g] || 0), 0
-  );
-  const fluxoOp = mesData.entradas - custosOperacionais;
-  const fluxoFinanceiro = mesData.porGrupo[13] || 0;
-  const investimentos = mesData.porGrupo[14] || 0;
-  const fluxoLivre = fluxoOp + fluxoFinanceiro - investimentos;
+  const { fluxoOperacional: fluxoOp, fluxoLivre } = calcularFluxos(mesData);
+  const totalEntradasMes = mesData.recebimento + mesData.grupo13Entrada;
+  const totalSaidasMes = custosOperacionais(mesData) + mesData.grupo14 + mesData.grupo13Saida;
 
   // Faturamento do mês atual (NFs)
   const faturamentoWhere: Record<string, unknown> = { competencia: mesAtual };
@@ -130,13 +149,13 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     kpis: {
-      totalRecebimento: mesData.entradas,
+      totalRecebimento: mesData.recebimento,
       totalFaturamento,
       fluxoOperacional: fluxoOp,
       fluxoLivre,
-      percentFluxoLivre: mesData.entradas > 0 ? (fluxoLivre / mesData.entradas) * 100 : 0,
+      percentFluxoLivre: mesData.recebimento > 0 ? (fluxoLivre / mesData.recebimento) * 100 : 0,
       percentCustoDireto: totalFaturamento > 0 ? (custosDir / totalFaturamento) * 100 : 0,
-      saldoAtual: mesData.entradas - mesData.saidas,
+      saldoAtual: totalEntradasMes - totalSaidasMes,
     },
     graficoMensal,
     distribuicaoRecebimento,

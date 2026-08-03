@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { getCompetencia } from "@/lib/utils";
+import { getGrupoById } from "@/lib/categorias";
+
+function resolverTipoLancamento(
+  grupoId: number,
+  tipoRecebido: unknown
+): "ENTRADA" | "SAIDA" | null {
+  const grupo = getGrupoById(grupoId);
+  if (!grupo) return null;
+  if (!grupo.permiteAmbosTipos) return grupo.tipo;
+  return tipoRecebido === "ENTRADA" || tipoRecebido === "SAIDA" ? tipoRecebido : null;
+}
 
 export async function GET(
   req: NextRequest,
@@ -26,6 +37,7 @@ export async function PUT(
 ) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  // OPERADOR pode editar lançamentos (só não cria nem exclui) — decisão de 2026-05-27.
 
   const { id } = await params;
   const body = await req.json();
@@ -33,6 +45,11 @@ export async function PUT(
 
   const existing = await prisma.lancamento.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
+
+  const tipoFinal = resolverTipoLancamento(Number(grupoId), tipo);
+  if (!tipoFinal) {
+    return NextResponse.json({ error: "Grupo ou tipo de lançamento inválido" }, { status: 400 });
+  }
 
   const dataObj = new Date(data);
   const competencia = getCompetencia(dataObj);
@@ -46,7 +63,7 @@ export async function PUT(
       subgrupoId: subgrupoId || null,
       descricao,
       valor,
-      tipo,
+      tipo: tipoFinal,
       observacao: observacao || null,
       competencia,
     },

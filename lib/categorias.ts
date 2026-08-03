@@ -10,6 +10,10 @@ export interface GrupoData {
   tipo: "ENTRADA" | "SAIDA";
   ordem: number;
   subgrupos: SubgrupoData[];
+  /** Grupo com subgrupos legitimamente de ambas as direções (ex.: juros pagos x recebidos).
+   * Quando true, o tipo do lançamento é escolhido pelo usuário; quando false/ausente,
+   * o backend sempre deriva o tipo a partir de `tipo` do grupo, ignorando o que vier do cliente. */
+  permiteAmbosTipos?: boolean;
 }
 
 export const GRUPOS: GrupoData[] = [
@@ -168,6 +172,7 @@ export const GRUPOS: GrupoData[] = [
     nome: "Receitas/Despesas Financeiras",
     tipo: "SAIDA",
     ordem: 11,
+    permiteAmbosTipos: true,
     subgrupos: [
       { id: "13-1", nome: "Empréstimos Recebidos", ordem: 1 },
       { id: "13-2", nome: "Amortizações", ordem: 2 },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { calcularFluxoOperacional, calcularFluxoLivre } from "@/lib/utils";
 function toNum(d: unknown): number {
   return d ? Number(d) : 0;
 }
@@ -96,6 +97,12 @@ export async function PUT(req: NextRequest) {
     total: number;
   }> = {};
 
+  // Movimento diário correto por tipo real do lançamento — não por grupo. Isso importa
+  // especialmente para o Grupo 13 (Receitas/Despesas Financeiras), que mistura entrada
+  // e saída: um "Juros Recebidos" precisa aumentar o saldo do dia, não reduzir.
+  const diaEntradas: Record<number, number> = {};
+  const diaSaidas: Record<number, number> = {};
+
   for (const l of lancamentos) {
     const dia = new Date(l.data).getUTCDate();
     const valor = toNum(l.valor);
@@ -126,6 +133,12 @@ export async function PUT(req: NextRequest) {
       s.porDia[dia] = (s.porDia[dia] || 0) + valor;
       s.total += valor;
     }
+
+    if (l.tipo === "ENTRADA") {
+      diaEntradas[dia] = (diaEntradas[dia] || 0) + valor;
+    } else {
+      diaSaidas[dia] = (diaSaidas[dia] || 0) + valor;
+    }
   }
 
   const totalRecebimento = gruposMap[1]?.total || 0;
@@ -135,22 +148,65 @@ export async function PUT(req: NextRequest) {
   const saldoPorDia: Record<number, { inicial: number; final: number }> = {};
 
   for (let d = 1; d <= diasNoMes; d++) {
-    const entradasDia = gruposMap[1]?.porDia[d] || 0;
-    const saidasDia = Object.entries(gruposMap)
-      .filter(([gId]) => Number(gId) !== 1)
-      .reduce((acc, [, g]) => acc + (g.porDia[d] || 0), 0);
+    const entradasDia = diaEntradas[d] || 0;
+    const saidasDia = diaSaidas[d] || 0;
 
     saldoPorDia[d] = { inicial: saldoCorrente, final: saldoCorrente + entradasDia - saidasDia };
     saldoCorrente = saldoPorDia[d].final;
   }
 
-  const custosOp = [4, 5, 6, 7, 8, 9, 10, 11, 12].reduce(
-    (acc, g) => acc + (gruposMap[g]?.total || 0), 0
-  );
-  const fluxoOperacional = totalRecebimento - custosOp;
-  const fluxoFinanceiro = gruposMap[13]?.total || 0;
+  // Fluxo Operacional/Livre pela mesma fórmula centralizada usada em /api/dfc e /api/dashboard.
+  const totalPorGrupo: Record<number, number> = {};
+  for (const gId of [4, 5, 6, 7, 8, 9, 10, 11, 12]) totalPorGrupo[gId] = gruposMap[gId]?.total || 0;
+  let grupo13Entrada = 0;
+  let grupo13Saida = 0;
+  for (const l of lancamentos) {
+    if (l.grupoId !== 13) continue;
+    const valor = toNum(l.valor);
+    if (l.tipo === "ENTRADA") grupo13Entrada += valor;
+    else grupo13Saida += valor;
+  }
   const investimentos = gruposMap[14]?.total || 0;
-  const fluxoLivre = fluxoOperacional + fluxoFinanceiro - investimentos;
+  const fluxoOperacional = calcularFluxoOperacional(totalRecebimento, totalPorGrupo);
+  const fluxoLivre = calcularFluxoLivre(fluxoOperacional, grupo13Entrada - grupo13Saida, investimentos);
+
+  // Persiste o saldo diário calculado (saldoFinal/totalEntradas/totalSaidas ficavam sempre
+  // zerados antes). Só faz sentido por filial — a visão "todas as filiais" soma vários
+  // filialIds num único número, que não corresponde a nenhuma linha real de Saldo.
+  if (filialId) {
+    try {
+      const upserts = [];
+      for (let d = 1; d <= diasNoMes; d++) {
+        const dataDia = new Date(Date.UTC(ano, mes - 1, d));
+        const { inicial, final } = saldoPorDia[d];
+        upserts.push(
+          prisma.saldo.upsert({
+            where: { filialId_data: { filialId, data: dataDia } },
+            create: {
+              filialId,
+              data: dataDia,
+              competencia,
+              saldoInicial: inicial,
+              saldoFinal: final,
+              totalEntradas: diaEntradas[d] || 0,
+              totalSaidas: diaSaidas[d] || 0,
+            },
+            update: {
+              saldoInicial: inicial,
+              saldoFinal: final,
+              totalEntradas: diaEntradas[d] || 0,
+              totalSaidas: diaSaidas[d] || 0,
+            },
+          })
+        );
+      }
+      await prisma.$transaction(upserts);
+    } catch (error) {
+      // Não deixa uma falha ao persistir o cache derrubar a visão mensal, que já
+      // tem os números corretos calculados em memória a partir dos lançamentos.
+      console.error("Falha ao persistir saldo diário:", error);
+    }
+  }
 
   return NextResponse.json({
     competencia,

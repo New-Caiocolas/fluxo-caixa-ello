@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { getCompetencia } from "@/lib/utils";
+import { getGrupoById } from "@/lib/categorias";
+
+function resolverTipoLancamento(
+  grupoId: number,
+  tipoRecebido: unknown
+): "ENTRADA" | "SAIDA" | null {
+  const grupo = getGrupoById(grupoId);
+  if (!grupo) return null;
+  if (!grupo.permiteAmbosTipos) return grupo.tipo;
+  return tipoRecebido === "ENTRADA" || tipoRecebido === "SAIDA" ? tipoRecebido : null;
+}
 
 export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
@@ -62,6 +73,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Campos obrigatórios faltando" }, { status: 400 });
     }
 
+    const tipoFinal = resolverTipoLancamento(Number(grupoId), tipo);
+    if (!tipoFinal) {
+      return NextResponse.json({ error: "Grupo ou tipo de lançamento inválido" }, { status: 400 });
+    }
+
     const dataObj = new Date(data);
     const competencia = getCompetencia(dataObj);
 
@@ -73,7 +89,7 @@ export async function POST(req: NextRequest) {
         subgrupoId: subgrupoId || null,
         descricao,
         valor,
-        tipo,
+        tipo: tipoFinal,
         observacao: observacao || null,
         competencia,
         userId: user.userId,

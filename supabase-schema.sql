@@ -1,5 +1,3 @@
-Loaded Prisma config from prisma.config.ts.
-
 -- CreateSchema
 CREATE SCHEMA IF NOT EXISTS "public";
 
@@ -19,6 +17,7 @@ CREATE TABLE "User" (
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "role" "Role" NOT NULL DEFAULT 'OPERADOR',
+    "mustChangePassword" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -150,6 +149,7 @@ CREATE TABLE "Faturamento" (
 -- CreateTable
 CREATE TABLE "Meta" (
     "id" TEXT NOT NULL,
+    "filialId" TEXT NOT NULL,
     "nome" TEXT NOT NULL,
     "descricao" TEXT,
     "tipo" TEXT NOT NULL,
@@ -196,6 +196,9 @@ CREATE UNIQUE INDEX "Saldo_filialId_data_key" ON "Saldo"("filialId", "data");
 -- CreateIndex
 CREATE INDEX "Faturamento_filialId_competencia_idx" ON "Faturamento"("filialId", "competencia");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "Meta_filialId_tipo_key" ON "Meta"("filialId", "tipo");
+
 -- AddForeignKey
 ALTER TABLE "Subgrupo" ADD CONSTRAINT "Subgrupo_grupoId_fkey" FOREIGN KEY ("grupoId") REFERENCES "Grupo"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -231,4 +234,7 @@ ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_userId_fkey" FOREIGN KEY ("userI
 
 -- AddForeignKey
 ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_lancamentoId_fkey" FOREIGN KEY ("lancamentoId") REFERENCES "Lancamento"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Meta" ADD CONSTRAINT "Meta_filialId_fkey" FOREIGN KEY ("filialId") REFERENCES "Filial"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 

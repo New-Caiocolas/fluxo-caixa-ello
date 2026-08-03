@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  if (user.role === "OPERADOR") return NextResponse.json({ error: "Sem permissão para excluir faturamento" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
