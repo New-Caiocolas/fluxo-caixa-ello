@@ -46,10 +46,31 @@ Centralizada em `lib/permissoes.ts`.
 
 ---
 
+## 🗄️ Migrations (Prisma + Supabase)
+
+O banco foi **baselined** em 2026-08-07 com a migration `0_init`, gerada a partir do schema e marcada como aplicada via `prisma migrate resolve --applied` — o SQL nunca foi executado, porque as tabelas já existiam. A partir daí o fluxo é o normal: `npx prisma migrate dev --name <nome>`.
+
+> ⚠️ **Nunca rode `migrate dev` contra um banco não-baselined.** O Prisma interpreta as tabelas pré-existentes como drift e oferece resetar o banco — o que apagaria produção.
+
+**As duas URLs não são intercambiáveis:**
+
+| Variável | Porta | Modo | Uso |
+|---|---|---|---|
+| `DATABASE_URL` | 6543 | Transaction (PgBouncer) | Runtime da aplicação |
+| `DIRECT_URL` | 5432 | Session | **Somente** migrations |
+
+Migrations exigem prepared statements e advisory locks, que o pooler de transação não suporta — apontar migrations para a 6543 faz o CLI travar indefinidamente, sem erro. `prisma.config.ts` lê `DIRECT_URL` para isso.
+
+Evite a conexão direta (`db.<ref>.supabase.co:5432`): ela é IPv6-only sem o add-on de IPv4 e pendura em redes IPv4. O session pooler resolve isso e é o que o próprio Supabase recomenda para Prisma.
+
+`supabase-schema.sql` é um artefato histórico de quando o DDL era aplicado à mão. **A fonte de verdade do schema agora é `prisma/migrations/`.**
+
+---
+
 ## ⚙️ Variáveis de Ambiente Necessárias (`.env`)
 
-- `DATABASE_URL`: Connection pooler (Supabase PgBouncer) para runtime.
-- `DIRECT_URL`: Conexão direta para migrations do Prisma.
+- `DATABASE_URL`: Connection pooler em modo transaction (porta 6543) para runtime.
+- `DIRECT_URL`: Pooler em modo session (porta 5432) — usado só por migrations.
 - `JWT_SECRET`: Chave secreta de validação de tokens JWT.
 - `GMAIL_USER` / `GMAIL_APP_PASSWORD`: Credenciais para envio do e-mail SMTP de boas-vindas via Nodemailer.
 - `APP_URL`: URL base pública do sistema para links em e-mails.
