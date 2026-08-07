@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { ehAdmin } from "@/lib/permissoes";
 
 export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const user = getUserFromRequest(req);
-  if (!user || user.role !== "ADMIN") {
+  if (!user || !ehAdmin(user.role)) {
     return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
   }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { podeExecutar } from "@/lib/permissoes";
 
 export async function PUT(
   req: NextRequest,
@@ -8,7 +9,7 @@ export async function PUT(
 ) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  if (user.role === "OPERADOR") return NextResponse.json({ error: "Sem permissão para configurar metas" }, { status: 403 });
+  if (!podeExecutar(user.role, "meta:configurar")) return NextResponse.json({ error: "Sem permissão para configurar metas" }, { status: 403 });
 
   const { id } = await params;
   const body = await req.json();

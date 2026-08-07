@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { podeExecutar } from "@/lib/permissoes";
 function toNum(d: unknown): number {
   return d ? Number(d) : 0;
 }
@@ -98,7 +99,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  if (user.role === "OPERADOR") return NextResponse.json({ error: "Sem permissão para lançar faturamento" }, { status: 403 });
+  if (!podeExecutar(user.role, "faturamento:criar")) return NextResponse.json({ error: "Sem permissão para lançar faturamento" }, { status: 403 });
 
   const { filialId, competencia, valorNF, descricao } = await req.json();
 
@@ -113,7 +114,7 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  if (user.role === "OPERADOR") return NextResponse.json({ error: "Sem permissão para excluir faturamento" }, { status: 403 });
+  if (!podeExecutar(user.role, "faturamento:excluir")) return NextResponse.json({ error: "Sem permissão para excluir faturamento" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");

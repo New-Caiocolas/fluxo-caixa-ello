@@ -2,17 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { getCompetencia } from "@/lib/utils";
-import { getGrupoById } from "@/lib/categorias";
-
-function resolverTipoLancamento(
-  grupoId: number,
-  tipoRecebido: unknown
-): "ENTRADA" | "SAIDA" | null {
-  const grupo = getGrupoById(grupoId);
-  if (!grupo) return null;
-  if (!grupo.permiteAmbosTipos) return grupo.tipo;
-  return tipoRecebido === "ENTRADA" || tipoRecebido === "SAIDA" ? tipoRecebido : null;
-}
+import { resolverTipoLancamento } from "@/lib/lancamentos";
+import { podeExecutar } from "@/lib/permissoes";
 
 export async function GET(
   req: NextRequest,
@@ -38,6 +29,7 @@ export async function PUT(
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   // OPERADOR pode editar lançamentos (só não cria nem exclui) — decisão de 2026-05-27.
+  if (!podeExecutar(user.role, "lancamento:editar")) return NextResponse.json({ error: "Sem permissão para editar lançamentos" }, { status: 403 });
 
   const { id } = await params;
   const body = await req.json();
@@ -89,7 +81,7 @@ export async function DELETE(
 ) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  if (user.role === "OPERADOR") return NextResponse.json({ error: "Sem permissão para excluir lançamentos" }, { status: 403 });
+  if (!podeExecutar(user.role, "lancamento:excluir")) return NextResponse.json({ error: "Sem permissão para excluir lançamentos" }, { status: 403 });
 
   const { id } = await params;
   const existing = await prisma.lancamento.findUnique({ where: { id } });

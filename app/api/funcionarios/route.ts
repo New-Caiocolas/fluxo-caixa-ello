@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { podeExecutar } from "@/lib/permissoes";
 
 export async function GET(req: NextRequest) {
   const user = getUserFromRequest(req);
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  if (user.role === "OPERADOR") return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
+  if (!podeExecutar(user.role, "funcionario:criar")) return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
 
   const body = await req.json();
   const { filialId, nome, cargo, salarioBase, trienio, admissao } = body;
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  if (user.role === "OPERADOR") return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
+  if (!podeExecutar(user.role, "funcionario:editar")) return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");

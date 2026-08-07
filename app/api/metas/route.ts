@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { podeExecutar } from "@/lib/permissoes";
 
 const TIPOS_VALIDOS = ["FLUXO_LIVRE", "CUSTO_DIRETO"] as const;
 
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  if (user.role === "OPERADOR") return NextResponse.json({ error: "Sem permissão para configurar metas" }, { status: 403 });
+  if (!podeExecutar(user.role, "meta:configurar")) return NextResponse.json({ error: "Sem permissão para configurar metas" }, { status: 403 });
 
   const body = await req.json();
   const { filialId, tipo, nome, descricao, valorMeta, operador, baseCalculo } = body;

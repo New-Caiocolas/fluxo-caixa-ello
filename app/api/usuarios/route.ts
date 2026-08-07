@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest, hashPassword } from "@/lib/auth";
 import { sendWelcomeEmail } from "@/lib/email";
+import { podeExecutar } from "@/lib/permissoes";
 
 function requireAdmin(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  if (user.role !== "ADMIN") return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+  if (!podeExecutar(user.role, "usuario:gerenciar")) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
   return user;
 }
 

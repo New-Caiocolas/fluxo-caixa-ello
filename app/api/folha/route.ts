@@ -1,27 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { calcularFolha } from "@/lib/folha";
+import { podeExecutar } from "@/lib/permissoes";
 function toNum(d: unknown): number {
   return d ? Number(d) : 0;
-}
-
-function calcularFolha(
-  salarioBase: number,
-  trienioPerc: number,
-  comissao: number
-) {
-  const trienio = salarioBase * trienioPerc;
-  const baseComDSR = salarioBase + comissao + trienio;
-  const dsr = (baseComDSR / 30) * 4; // simplificado
-  const totalBruto = baseComDSR + dsr;
-
-  const inssPatronal = totalBruto * 0.20;
-  const entidades = totalBruto * 0.058;
-  const fgts = totalBruto * 0.085;
-  const totalEncargos = inssPatronal + entidades + fgts;
-  const totalPagar = totalBruto + totalEncargos;
-
-  return { trienio, dsr, totalBruto, inssPatronal, entidades, fgts, totalEncargos, totalPagar };
 }
 
 export async function GET(req: NextRequest) {
@@ -129,7 +112,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  if (user.role === "OPERADOR") return NextResponse.json({ error: "Sem permissão para editar a folha" }, { status: 403 });
+  if (!podeExecutar(user.role, "folha:editar")) return NextResponse.json({ error: "Sem permissão para editar a folha" }, { status: 403 });
 
   const { competencia, itens } = await req.json();
 
