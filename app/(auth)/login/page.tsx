@@ -96,10 +96,6 @@ export default function LoginPage() {
               {loading ? "Entrando..." : "Entrar"}
             </button>
           </form>
-
-          <p className="text-center text-xs text-gray-400 mt-6">
-            Credenciais padrão: admin@ello.com / admin123
-          </p>
         </div>
       </div>
     </div>

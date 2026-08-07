@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 import { GRUPOS } from "../lib/categorias";
 import { META_PADRAO } from "../lib/utils";
 import * as dotenv from "dotenv";
@@ -14,14 +15,31 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log("Iniciando seed...");
 
-  // Usuário admin
-  const adminPass = await bcrypt.hash("admin123", 12);
+  // Usuário admin.
+  //
+  // A senha vem de SEED_ADMIN_PASSWORD; sem ela, sorteia uma e imprime uma única
+  // vez. Antes era "admin123" fixa no código — ou seja, publicada no repositório
+  // e idêntica em toda instalação. `mustChangePassword` obriga a troca no
+  // primeiro acesso; o upsert não mexe em senha de admin já existente.
+  const email = process.env.SEED_ADMIN_EMAIL ?? "admin@ello.com";
+  const senhaInformada = process.env.SEED_ADMIN_PASSWORD;
+  const senha = senhaInformada ?? randomBytes(12).toString("base64url");
+
   const admin = await prisma.user.upsert({
-    where: { email: "admin@ello.com" },
+    where: { email },
     update: {},
-    create: { name: "Administrador ELLO", email: "admin@ello.com", password: adminPass, role: "ADMIN" },
+    create: {
+      name: "Administrador ELLO",
+      email,
+      password: await bcrypt.hash(senha, 12),
+      role: "ADMIN",
+      mustChangePassword: true,
+    },
   });
   console.log("Usuário admin criado:", admin.email);
+  if (!senhaInformada) {
+    console.log(`Senha gerada (anote agora, não será exibida de novo): ${senha}`);
+  }
 
   // Filiais
   const filiais = await Promise.all([
@@ -143,7 +161,7 @@ async function main() {
   }
 
   console.log("\nSeed concluído!");
-  console.log("Login: admin@ello.com / Senha: admin123");
+  console.log("Acesse com o e-mail do admin e a senha definida acima.");
 }
 
 main()
