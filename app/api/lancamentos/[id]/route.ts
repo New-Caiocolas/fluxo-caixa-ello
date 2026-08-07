@@ -38,7 +38,14 @@ export async function PUT(
   const existing = await prisma.lancamento.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
 
-  const tipoFinal = resolverTipoLancamento(Number(grupoId), tipo);
+  // Na edição não se exige `ativo`: um lançamento antigo em grupo desativado
+  // ainda precisa poder ser corrigido.
+  const grupo = await prisma.grupo.findUnique({
+    where: { id: Number(grupoId) },
+    select: { tipo: true, permiteAmbosTipos: true },
+  });
+
+  const tipoFinal = resolverTipoLancamento(grupo, tipo);
   if (!tipoFinal) {
     return NextResponse.json({ error: "Grupo ou tipo de lançamento inválido" }, { status: 400 });
   }

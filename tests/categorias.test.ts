@@ -49,16 +49,32 @@ describe("integridade do plano de contas", () => {
   });
 
   /**
-   * Invariante que amarra o plano de contas à fórmula do fluxo em lib/utils.ts:
-   * `calcularFluxoOperacional` soma os grupos 4..12 como custo. Se alguém criar um
-   * grupo de saída novo (ex.: 15) e esquecer de incluí-lo na fórmula, este teste falha
-   * e aponta exatamente o que precisa ser atualizado.
+   * A fórmula do fluxo não é mais amarrada a ids (era [4..12] em lib/utils.ts):
+   * agora quem manda é a classificação. O que precisa ser garantido no seed é a
+   * coerência entre `tipo` e `classificacao` — um grupo de saída classificado
+   * como RECEBIMENTO somaria receita a cada despesa lançada.
    */
-  it("os grupos de saída são exatamente os custos operacionais (4..12) + financeiro (13) + investimento (14)", () => {
-    const saidas = GRUPOS.filter((g) => g.tipo === "SAIDA")
-      .map((g) => g.id)
-      .sort((a, b) => a - b);
-    expect(saidas).toEqual([4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+  it("a classificação de cada grupo é coerente com o tipo", () => {
+    for (const g of GRUPOS) {
+      if (g.classificacao === "RECEBIMENTO") {
+        expect(g.tipo, `grupo ${g.id}`).toBe("ENTRADA");
+      }
+      if (g.classificacao === "CUSTO_OPERACIONAL" || g.classificacao === "INVESTIMENTO") {
+        expect(g.tipo, `grupo ${g.id}`).toBe("SAIDA");
+      }
+    }
+  });
+
+  it("nenhum grupo do seed fica NEUTRO", () => {
+    // NEUTRO é opt-out explícito para grupos novos; nenhum do plano original
+    // deve cair nele, ou sumiria dos indicadores.
+    expect(GRUPOS.filter((g) => g.classificacao === "NEUTRO")).toEqual([]);
+  });
+
+  it("todo grupo que permite os dois tipos é de resultado financeiro", () => {
+    for (const g of GRUPOS.filter((x) => x.permiteAmbosTipos)) {
+      expect(g.classificacao, `grupo ${g.id}`).toBe("RESULTADO_FINANCEIRO");
+    }
   });
 });
 

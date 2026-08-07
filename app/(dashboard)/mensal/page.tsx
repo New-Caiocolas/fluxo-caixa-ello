@@ -5,7 +5,7 @@ import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
 import { useFilialAtiva } from "@/lib/hooks/useFilial";
 import { formatCurrency, formatPercent, mesNome } from "@/lib/utils";
-import { GRUPOS } from "@/lib/categorias";
+import { useGrupos } from "@/lib/hooks/useGrupos";
 import {
   ChevronDown,
   ChevronRight,
@@ -46,6 +46,10 @@ export default function MensalPage() {
   const [data, setData] = useState<MensalResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
+
+  // Inclui grupos inativos de propósito: meses passados podem ter lançamentos
+  // em grupos que já foram desativados, e eles precisam continuar aparecendo.
+  const { grupos: GRUPOS } = useGrupos();
 
   const fetchMensal = useCallback(async () => {
     setLoading(true);

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { GRUPOS } from "@/lib/categorias";
+import { useGrupos, apenasAtivos } from "@/lib/hooks/useGrupos";
 import { useFiliais } from "@/lib/hooks/useFilial";
 import { Lancamento, LancamentoForm } from "@/types";
 import { format } from "date-fns";
@@ -39,6 +39,8 @@ export function FormLancamento({
     observacao: initial?.observacao || "",
   });
 
+  const { grupos: todosGrupos } = useGrupos();
+  const GRUPOS = apenasAtivos(todosGrupos);
   const grupoSelecionado = GRUPOS.find((g) => g.id === Number(form.grupoId));
 
   // Ajusta tipo/subgrupo quando o grupo muda de verdade (não ao montar o form — senão

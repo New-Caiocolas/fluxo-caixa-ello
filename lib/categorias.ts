@@ -1,3 +1,13 @@
+/**
+ * Plano de contas inicial — **dados de semente, não fonte de verdade.**
+ *
+ * A verdade em runtime está nas tabelas Grupo/Subgrupo: grupos e subgrupos são
+ * configuráveis pela aplicação, então ler este arquivo faria a tela ignorar
+ * tudo que o usuário criou. Telas usam `lib/hooks/useGrupos`; o backend consulta
+ * o Prisma. Aqui ficam apenas os valores que `prisma/seed.ts` grava na primeira
+ * carga.
+ */
+
 export interface SubgrupoData {
   id: string;
   nome: string;

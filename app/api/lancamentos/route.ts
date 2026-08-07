@@ -64,9 +64,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Campos obrigatórios faltando" }, { status: 400 });
     }
 
-    const tipoFinal = resolverTipoLancamento(Number(grupoId), tipo);
+    const grupo = await prisma.grupo.findUnique({
+      where: { id: Number(grupoId) },
+      select: { tipo: true, permiteAmbosTipos: true, ativo: true },
+    });
+
+    const tipoFinal = resolverTipoLancamento(grupo, tipo);
     if (!tipoFinal) {
       return NextResponse.json({ error: "Grupo ou tipo de lançamento inválido" }, { status: 400 });
+    }
+
+    // Grupo desativado sai dos formulários mas continua existindo por causa do
+    // histórico; recusar aqui evita que um cliente desatualizado volte a usá-lo.
+    if (!grupo?.ativo) {
+      return NextResponse.json(
+        { error: "Este grupo está desativado e não aceita novos lançamentos" },
+        { status: 400 }
+      );
     }
 
     const dataObj = new Date(data);

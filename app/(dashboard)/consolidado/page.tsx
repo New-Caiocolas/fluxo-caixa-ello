@@ -5,7 +5,7 @@ import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
 import { useFilialAtiva } from "@/lib/hooks/useFilial";
 import { formatCurrency, formatPercent, META_PADRAO } from "@/lib/utils";
-import { GRUPOS } from "@/lib/categorias";
+import { useGrupos } from "@/lib/hooks/useGrupos";
 import { Meta } from "@/types";
 import {
   Download,
@@ -46,6 +46,10 @@ export default function ConsolidadoPage() {
     percentFluxoLivre: 0,
     porGrupo: {},
   };
+
+  // Inclui inativos: o consolidado anual mostra meses passados, que podem ter
+  // lançamentos em grupos já desativados.
+  const { grupos: GRUPOS } = useGrupos();
 
   const fetchConsolidado = useCallback(async () => {
     setLoading(true);
