@@ -51,7 +51,7 @@ export default function MensalPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ filialId: filialAtiva, competencia });
-      const res = await fetch(`/api/saldos?${params}`, { method: "PUT" });
+      const res = await fetch(`/api/mensal?${params}`);
       if (res.ok) {
         const json = await res.json();
         setData(json);

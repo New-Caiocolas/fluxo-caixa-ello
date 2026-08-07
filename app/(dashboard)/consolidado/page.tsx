@@ -50,37 +50,12 @@ export default function ConsolidadoPage() {
   const fetchConsolidado = useCallback(async () => {
     setLoading(true);
     try {
-      const competencias = Array.from({ length: 12 }, (_, i) =>
-        `${ano}-${String(i + 1).padStart(2, "0")}`
-      );
-
-      const results = await Promise.all(
-        competencias.map(async (comp) => {
-          const params = new URLSearchParams({ filialId: filialAtiva, competencia: comp });
-          const res = await fetch(`/api/saldos?${params}`, { method: "PUT" });
-          if (!res.ok) return { ...zero, competencia: comp };
-          const json = await res.json();
-          const porGrupo: Record<number, number> = {};
-          for (const [gId, gData] of Object.entries(json.grupos || {})) {
-            porGrupo[Number(gId)] = (gData as { total: number }).total || 0;
-          }
-          return {
-            competencia: comp,
-            totalEntradas: json.totalRecebimento || 0,
-            totalSaidas: Object.entries(json.grupos || {})
-              .filter(([g]) => Number(g) !== 1)
-              .reduce((a, [, g]) => a + ((g as { total: number }).total || 0), 0),
-            fluxoOperacional: json.fluxoOperacional || 0,
-            fluxoLivre: json.fluxoLivre || 0,
-            percentFluxoLivre:
-              json.totalRecebimento > 0
-                ? (json.fluxoLivre / json.totalRecebimento) * 100
-                : 0,
-            porGrupo,
-          };
-        })
-      );
-      setData(results);
+      const params = new URLSearchParams({ ano: String(ano) });
+      if (filialAtiva) params.set("filialId", filialAtiva);
+      const res = await fetch(`/api/consolidado?${params}`);
+      if (res.ok) {
+        setData(await res.json());
+      }
     } finally {
       setLoading(false);
     }
