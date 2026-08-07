@@ -63,7 +63,7 @@ Migrations exigem prepared statements e advisory locks, que o pooler de transaç
 
 Evite a conexão direta (`db.<ref>.supabase.co:5432`): ela é IPv6-only sem o add-on de IPv4 e pendura em redes IPv4. O session pooler resolve isso e é o que o próprio Supabase recomenda para Prisma.
 
-`supabase-schema.sql` é um artefato histórico de quando o DDL era aplicado à mão. **A fonte de verdade do schema agora é `prisma/migrations/`.**
+**A fonte de verdade do schema é `prisma/migrations/`.** O antigo `supabase-schema.sql`, da época em que o DDL era aplicado à mão, foi removido por ser redundante — seu conteúdo era idêntico ao de `0_init` (mesmos statements, só com três `ADD CONSTRAINT` em ordem diferente, o que não altera o resultado). Não recriar: dois arquivos de DDL divergem com o tempo e não há como saber qual foi aplicado.
 
 ---
 
