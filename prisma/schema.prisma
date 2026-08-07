@@ -45,21 +45,48 @@ enum TipoGrupo {
   SAIDA
 }
 
+/// Define como o grupo participa dos indicadores de fluxo de caixa.
+/// Sem isso, um grupo criado pelo usuário não entraria em conta nenhuma e os
+/// lançamentos dele sumiriam silenciosamente dos relatórios.
+enum Classificacao {
+  /// Entra como receita (base do fluxo operacional). Hoje: grupo 1.
+  RECEBIMENTO
+  /// Subtrai do fluxo operacional. Hoje: grupos 4 a 12.
+  CUSTO_OPERACIONAL
+  /// Soma no fluxo livre respeitando o sinal do lançamento. Hoje: grupo 13.
+  RESULTADO_FINANCEIRO
+  /// Subtrai do fluxo livre. Hoje: grupo 14.
+  INVESTIMENTO
+  /// Fora de todos os indicadores — precisa ser escolha explícita.
+  NEUTRO
+}
+
 model Grupo {
-  id    Int       @id
-  nome  String
-  tipo  TipoGrupo
-  ordem Int
+  id            Int           @id
+  nome          String
+  tipo          TipoGrupo
+  ordem         Int
+  classificacao Classificacao @default(NEUTRO)
+
+  /// Grupo cujos subgrupos têm as duas direções (ex.: juros pagos x recebidos).
+  /// Quando true o usuário escolhe o tipo do lançamento; quando false o backend
+  /// deriva o tipo de `tipo` e ignora o que vier do cliente.
+  permiteAmbosTipos Boolean @default(false)
+
+  /// Desativado some dos formulários mas preserva o histórico. Exclusão de
+  /// verdade é impossível: Lancamento tem FK RESTRICT para cá.
+  ativo Boolean @default(true)
 
   subgrupos   Subgrupo[]
   lancamentos Lancamento[]
 }
 
 model Subgrupo {
-  id      String @id @default(cuid())
+  id      String  @id @default(cuid())
   grupoId Int
   nome    String
   ordem   Int
+  ativo   Boolean @default(true)
 
   grupo       Grupo        @relation(fields: [grupoId], references: [id])
   lancamentos Lancamento[]

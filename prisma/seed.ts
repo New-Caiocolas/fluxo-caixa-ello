@@ -33,10 +33,19 @@ async function main() {
 
   // Grupos e Subgrupos
   for (const g of GRUPOS) {
+    // classificacao e permiteAmbosTipos entram aqui explicitamente: sem eles o
+    // grupo nasceria NEUTRO (default do schema) e ficaria fora dos indicadores.
+    const dados = {
+      nome: g.nome,
+      tipo: g.tipo,
+      ordem: g.ordem,
+      classificacao: g.classificacao,
+      permiteAmbosTipos: g.permiteAmbosTipos ?? false,
+    };
     await prisma.grupo.upsert({
       where: { id: g.id },
-      update: { nome: g.nome, tipo: g.tipo, ordem: g.ordem },
-      create: { id: g.id, nome: g.nome, tipo: g.tipo, ordem: g.ordem },
+      update: dados,
+      create: { id: g.id, ...dados },
     });
     for (const s of g.subgrupos) {
       await prisma.subgrupo.upsert({

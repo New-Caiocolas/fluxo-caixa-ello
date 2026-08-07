@@ -4,11 +4,20 @@ export interface SubgrupoData {
   ordem: number;
 }
 
+/** Como o grupo entra nos indicadores. Espelha o enum Classificacao do Prisma. */
+export type Classificacao =
+  | "RECEBIMENTO"
+  | "CUSTO_OPERACIONAL"
+  | "RESULTADO_FINANCEIRO"
+  | "INVESTIMENTO"
+  | "NEUTRO";
+
 export interface GrupoData {
   id: number;
   nome: string;
   tipo: "ENTRADA" | "SAIDA";
   ordem: number;
+  classificacao: Classificacao;
   subgrupos: SubgrupoData[];
   /** Grupo com subgrupos legitimamente de ambas as direções (ex.: juros pagos x recebidos).
    * Quando true, o tipo do lançamento é escolhido pelo usuário; quando false/ausente,
@@ -22,6 +31,7 @@ export const GRUPOS: GrupoData[] = [
     nome: "Recebimentos",
     tipo: "ENTRADA",
     ordem: 1,
+    classificacao: "RECEBIMENTO",
     subgrupos: [
       { id: "1-1", nome: "Boleto", ordem: 1 },
       { id: "1-2", nome: "PIX", ordem: 2 },
@@ -37,6 +47,7 @@ export const GRUPOS: GrupoData[] = [
     nome: "Custos Diretos",
     tipo: "SAIDA",
     ordem: 2,
+    classificacao: "CUSTO_OPERACIONAL",
     subgrupos: [
       { id: "4-1", nome: "Mercadoria/Insumo", ordem: 1 },
       { id: "4-2", nome: "Mercadoria/Revenda", ordem: 2 },
@@ -48,6 +59,7 @@ export const GRUPOS: GrupoData[] = [
     nome: "Mão de Obra Direta",
     tipo: "SAIDA",
     ordem: 3,
+    classificacao: "CUSTO_OPERACIONAL",
     subgrupos: [
       { id: "5-1", nome: "Salários Produção", ordem: 1 },
       { id: "5-2", nome: "Encargos Produção", ordem: 2 },
@@ -59,6 +71,7 @@ export const GRUPOS: GrupoData[] = [
     nome: "Materiais Indiretos",
     tipo: "SAIDA",
     ordem: 4,
+    classificacao: "CUSTO_OPERACIONAL",
     subgrupos: [
       { id: "6-1", nome: "Água", ordem: 1 },
       { id: "6-2", nome: "Energia Elétrica", ordem: 2 },
@@ -82,6 +95,7 @@ export const GRUPOS: GrupoData[] = [
     nome: "Despesas Administrativas",
     tipo: "SAIDA",
     ordem: 5,
+    classificacao: "CUSTO_OPERACIONAL",
     subgrupos: [
       { id: "7-1", nome: "TI / Sistemas", ordem: 1 },
       { id: "7-2", nome: "Telefonia / Internet", ordem: 2 },
@@ -103,6 +117,7 @@ export const GRUPOS: GrupoData[] = [
     nome: "Despesas com Pessoal ADM",
     tipo: "SAIDA",
     ordem: 6,
+    classificacao: "CUSTO_OPERACIONAL",
     subgrupos: [
       { id: "8-1", nome: "Salários ADM", ordem: 1 },
       { id: "8-2", nome: "FGTS", ordem: 2 },
@@ -121,6 +136,7 @@ export const GRUPOS: GrupoData[] = [
     nome: "Pró-Labore Diretoria",
     tipo: "SAIDA",
     ordem: 7,
+    classificacao: "CUSTO_OPERACIONAL",
     subgrupos: [
       { id: "9-1", nome: "Pró-Labore Sócio 1", ordem: 1 },
       { id: "9-2", nome: "Pró-Labore Sócio 2", ordem: 2 },
@@ -132,6 +148,7 @@ export const GRUPOS: GrupoData[] = [
     nome: "Despesas Comerciais",
     tipo: "SAIDA",
     ordem: 8,
+    classificacao: "CUSTO_OPERACIONAL",
     subgrupos: [
       { id: "10-1", nome: "Comissões Vendas", ordem: 1 },
       { id: "10-2", nome: "Publicidade / Marketing", ordem: 2 },
@@ -145,6 +162,7 @@ export const GRUPOS: GrupoData[] = [
     nome: "Impostos sobre Vendas",
     tipo: "SAIDA",
     ordem: 9,
+    classificacao: "CUSTO_OPERACIONAL",
     subgrupos: [
       { id: "11-1", nome: "PIS", ordem: 1 },
       { id: "11-2", nome: "COFINS", ordem: 2 },
@@ -158,6 +176,7 @@ export const GRUPOS: GrupoData[] = [
     nome: "Outros Impostos",
     tipo: "SAIDA",
     ordem: 10,
+    classificacao: "CUSTO_OPERACIONAL",
     subgrupos: [
       { id: "12-1", nome: "IRPJ", ordem: 1 },
       { id: "12-2", nome: "CSLL", ordem: 2 },
@@ -172,6 +191,7 @@ export const GRUPOS: GrupoData[] = [
     nome: "Receitas/Despesas Financeiras",
     tipo: "SAIDA",
     ordem: 11,
+    classificacao: "RESULTADO_FINANCEIRO",
     permiteAmbosTipos: true,
     subgrupos: [
       { id: "13-1", nome: "Empréstimos Recebidos", ordem: 1 },
@@ -187,6 +207,7 @@ export const GRUPOS: GrupoData[] = [
     nome: "Investimentos",
     tipo: "SAIDA",
     ordem: 12,
+    classificacao: "INVESTIMENTO",
     subgrupos: [
       { id: "14-1", nome: "Máquinas e Equipamentos", ordem: 1 },
       { id: "14-2", nome: "Veículos", ordem: 2 },
