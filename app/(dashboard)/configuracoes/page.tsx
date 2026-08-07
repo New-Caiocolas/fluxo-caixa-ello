@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import { useAuth } from "@/lib/context/AuthContext";
 import { formatDate, META_PADRAO } from "@/lib/utils";
 import { Meta } from "@/types";
+import { SecaoCategorias } from "@/components/configuracoes/SecaoCategorias";
 import { Building2, Plus, Users, ShieldCheck, Trash2, TriangleAlert, Target } from "lucide-react";
 
 interface Filial { id: string; nome: string; codigo: string; ativa: boolean; createdAt: string; }
@@ -268,6 +269,9 @@ export default function ConfiguracoesPage() {
           )}
         </div>
       </div>
+
+      {/* Plano de contas — ADMIN e GESTOR editam */}
+      <SecaoCategorias />
 
       {/* Zona de Perigo — somente ADMIN */}
       {user?.role === "ADMIN" && (
