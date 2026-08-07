@@ -1,45 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { calcularFluxoOperacional, calcularFluxoLivre } from "@/lib/utils";
+import { calcularIndicadores, type TotaisPorGrupo, type GrupoClassificado } from "@/lib/utils";
 function toNum(d: unknown): number {
   return d ? Number(d) : 0;
 }
 
-interface MesAcumulado {
-  recebimento: number; // Grupo 1 — único grupo que define "Recebimento"
-  porGrupo: Record<number, number>; // Grupos 4 a 12 (sempre SAÍDA)
-  grupo13Entrada: number;
-  grupo13Saida: number;
-  grupo14: number; // Investimentos (sempre SAÍDA)
-}
+/**
+ * Acumulado de um mês: totais por grupo separados por direção.
+ *
+ * Antes esta struct tinha campos nomeados por id de grupo (grupo13Entrada,
+ * grupo14...). Com grupos criados pelo usuário isso não escala — quem decide o
+ * papel de cada grupo agora é a classificação, resolvida em calcularIndicadores.
+ */
+type MesAcumulado = TotaisPorGrupo;
 
 function novoMesAcumulado(): MesAcumulado {
-  return { recebimento: 0, porGrupo: {}, grupo13Entrada: 0, grupo13Saida: 0, grupo14: 0 };
+  return {};
 }
 
 function acumular(mes: MesAcumulado, grupoId: number, valor: number, tipo: string) {
-  if (grupoId === 1) {
-    mes.recebimento += valor;
-  } else if (grupoId === 13) {
-    if (tipo === "ENTRADA") mes.grupo13Entrada += valor;
-    else mes.grupo13Saida += valor;
-  } else if (grupoId === 14) {
-    mes.grupo14 += valor;
-  } else {
-    mes.porGrupo[grupoId] = (mes.porGrupo[grupoId] || 0) + valor;
-  }
-}
-
-function custosOperacionais(mes: MesAcumulado): number {
-  return [4, 5, 6, 7, 8, 9, 10, 11, 12].reduce((acc, g) => acc + (mes.porGrupo[g] || 0), 0);
-}
-
-function calcularFluxos(mes: MesAcumulado) {
-  const fluxoOperacional = calcularFluxoOperacional(mes.recebimento, mes.porGrupo);
-  const grupo13Liquido = mes.grupo13Entrada - mes.grupo13Saida;
-  const fluxoLivre = calcularFluxoLivre(fluxoOperacional, grupo13Liquido, mes.grupo14);
-  return { fluxoOperacional, fluxoLivre };
+  const t = (mes[grupoId] ??= { entrada: 0, saida: 0 });
+  if (tipo === "ENTRADA") t.entrada += valor;
+  else t.saida += valor;
 }
 
 export async function GET(req: NextRequest) {
@@ -78,29 +61,41 @@ export async function GET(req: NextRequest) {
     acumular(mes, l.grupoId, toNum(l.valor), l.tipo);
   }
 
+  const grupos = await prisma.grupo.findMany({ orderBy: { ordem: "asc" } });
+  const gruposClassificados: GrupoClassificado[] = grupos.map((g) => ({
+    id: g.id,
+    classificacao: g.classificacao,
+  }));
+
   // Dados mensais para gráficos — restrito às atividades operacionais
-  // (Grupo 1 x Grupos 4-12); financiamento/investimento ficam na aba DFC.
+  // (recebimento x custo operacional); financiamento/investimento ficam na aba DFC.
   const graficoMensal = competencias.map((comp) => {
-    const mes = porMes[comp];
     const [, m] = comp.split("-");
     const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-    const { fluxoOperacional } = calcularFluxos(mes);
+    const ind = calcularIndicadores(gruposClassificados, porMes[comp]);
     return {
       mes: meses[parseInt(m) - 1],
       competencia: comp,
-      recebimento: mes.recebimento,
-      saidas: custosOperacionais(mes),
-      fluxoOperacional,
+      recebimento: ind.recebimento,
+      saidas: ind.custos,
+      fluxoOperacional: ind.fluxoOperacional,
     };
   });
 
   // KPIs do mês atual
   const mesAtual = `${ano}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
   const mesData = porMes[mesAtual] || novoMesAcumulado();
-  const custosDir = toNum(mesData.porGrupo[4]);
-  const { fluxoOperacional: fluxoOp, fluxoLivre } = calcularFluxos(mesData);
-  const totalEntradasMes = mesData.recebimento + mesData.grupo13Entrada;
-  const totalSaidasMes = custosOperacionais(mesData) + mesData.grupo14 + mesData.grupo13Saida;
+  const ind = calcularIndicadores(gruposClassificados, mesData);
+  const { fluxoOperacional: fluxoOp, fluxoLivre } = ind;
+
+  // "Custo direto" é especificamente o grupo 4 — é a base da meta CUSTO_DIRETO,
+  // não um balde de classificação.
+  const custosDir = mesData[4]?.saida ?? 0;
+
+  // Movimento de caixa do mês: tudo que entrou menos tudo que saiu, em qualquer
+  // grupo (inclusive NEUTRO — o dinheiro se move mesmo fora dos indicadores).
+  const totalEntradasMes = Object.values(mesData).reduce((a, t) => a + t.entrada, 0);
+  const totalSaidasMes = Object.values(mesData).reduce((a, t) => a + t.saida, 0);
 
   // Faturamento do mês atual (NFs)
   const faturamentoWhere: Record<string, unknown> = { competencia: mesAtual };
@@ -138,7 +133,6 @@ export async function GET(req: NextRequest) {
     _sum: { valor: true },
   });
 
-  const grupos = await prisma.grupo.findMany({ orderBy: { ordem: "asc" } });
   const composicaoDespesas = despesasPorGrupo.map((d) => {
     const grupo = grupos.find((g) => g.id === d.grupoId);
     return {
@@ -149,11 +143,11 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     kpis: {
-      totalRecebimento: mesData.recebimento,
+      totalRecebimento: ind.recebimento,
       totalFaturamento,
       fluxoOperacional: fluxoOp,
       fluxoLivre,
-      percentFluxoLivre: mesData.recebimento > 0 ? (fluxoLivre / mesData.recebimento) * 100 : 0,
+      percentFluxoLivre: ind.recebimento > 0 ? (fluxoLivre / ind.recebimento) * 100 : 0,
       percentCustoDireto: totalFaturamento > 0 ? (custosDir / totalFaturamento) * 100 : 0,
       saldoAtual: totalEntradasMes - totalSaidasMes,
     },

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { calcularFluxoOperacional, calcularFluxoLivre } from "@/lib/utils";
+import { calcularIndicadores, totalizarLancamentos } from "@/lib/utils";
 
 function toNum(d: unknown): number {
   return d ? Number(d) : 0;
@@ -126,19 +126,17 @@ export async function GET(req: NextRequest) {
   }
 
   // Fluxo Operacional/Livre pela mesma fórmula centralizada usada em /api/dfc e /api/dashboard.
-  const totalPorGrupo: Record<number, number> = {};
-  for (const gId of [4, 5, 6, 7, 8, 9, 10, 11, 12]) totalPorGrupo[gId] = gruposMap[gId]?.total || 0;
-  let grupo13Entrada = 0;
-  let grupo13Saida = 0;
-  for (const l of lancamentos) {
-    if (l.grupoId !== 13) continue;
-    const valor = toNum(l.valor);
-    if (l.tipo === "ENTRADA") grupo13Entrada += valor;
-    else grupo13Saida += valor;
-  }
-  const investimentos = gruposMap[14]?.total || 0;
-  const fluxoOperacional = calcularFluxoOperacional(totalRecebimento, totalPorGrupo);
-  const fluxoLivre = calcularFluxoLivre(fluxoOperacional, grupo13Entrada - grupo13Saida, investimentos);
+  // A classificação vem do próprio grupo, então grupo criado pelo usuário entra na
+  // conta sozinho. Derivada dos lançamentos: grupo sem lançamento contribui zero.
+  const grupos = [
+    ...new Map(
+      lancamentos.map((l) => [l.grupoId, { id: l.grupoId, classificacao: l.grupo.classificacao }])
+    ).values(),
+  ];
+  const totais = totalizarLancamentos(
+    lancamentos.map((l) => ({ grupoId: l.grupoId, tipo: l.tipo, valor: toNum(l.valor) }))
+  );
+  const { fluxoOperacional, fluxoLivre } = calcularIndicadores(grupos, totais);
 
   // Persiste o saldo diário calculado. Só faz sentido por filial — a visão "todas as
   // filiais" soma vários filialIds num único número, que não corresponde a nenhuma linha

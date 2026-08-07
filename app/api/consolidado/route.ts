@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { calcularFluxoOperacional, calcularFluxoLivre } from "@/lib/utils";
+import { calcularIndicadores, totalizarLancamentos } from "@/lib/utils";
 
 function toNum(d: unknown): number {
   return d ? Number(d) : 0;
@@ -69,32 +69,29 @@ export async function GET(req: NextRequest) {
     const lancsMes = lancamentosPorMes[comp] || [];
 
     const porGrupo: Record<number, number> = {};
-    let grupo13Entrada = 0;
-    let grupo13Saida = 0;
-
     for (const l of lancsMes) {
-      const valor = toNum(l.valor);
-      porGrupo[l.grupoId] = (porGrupo[l.grupoId] || 0) + valor;
-
-      if (l.grupoId === 13) {
-        if (l.tipo === "ENTRADA") grupo13Entrada += valor;
-        else grupo13Saida += valor;
-      }
+      porGrupo[l.grupoId] = (porGrupo[l.grupoId] || 0) + toNum(l.valor);
     }
 
-    const totalEntradas = porGrupo[1] || 0;
+    // A classificação de cada grupo é quem decide o balde — grupo criado pelo
+    // usuário entra na conta sem alteração de código.
+    const grupos = [
+      ...new Map(
+        lancsMes.map((l) => [l.grupoId, { id: l.grupoId, classificacao: l.grupo.classificacao }])
+      ).values(),
+    ];
+    const totais = totalizarLancamentos(
+      lancsMes.map((l) => ({ grupoId: l.grupoId, tipo: l.tipo, valor: toNum(l.valor) }))
+    );
+    const { recebimento, fluxoOperacional, fluxoLivre } = calcularIndicadores(grupos, totais);
+
+    const totalEntradas = recebimento;
+    const idsRecebimento = new Set(
+      grupos.filter((g) => g.classificacao === "RECEBIMENTO").map((g) => g.id)
+    );
     const totalSaidas = Object.entries(porGrupo)
-      .filter(([g]) => Number(g) !== 1)
+      .filter(([g]) => !idsRecebimento.has(Number(g)))
       .reduce((a, [, v]) => a + v, 0);
-
-    const totalPorGrupo: Record<number, number> = {};
-    for (const gId of [4, 5, 6, 7, 8, 9, 10, 11, 12]) {
-      totalPorGrupo[gId] = porGrupo[gId] || 0;
-    }
-
-    const fluxoOperacional = calcularFluxoOperacional(totalEntradas, totalPorGrupo);
-    const investimentos = porGrupo[14] || 0;
-    const fluxoLivre = calcularFluxoLivre(fluxoOperacional, grupo13Entrada - grupo13Saida, investimentos);
 
     return {
       competencia: comp,

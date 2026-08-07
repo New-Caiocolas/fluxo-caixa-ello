@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { calcularFluxoOperacional, calcularFluxoLivre } from "@/lib/utils";
+import { calcularIndicadores, totalizarLancamentos } from "@/lib/utils";
 
 function toNum(d: unknown): number {
   return d ? Number(d) : 0;
@@ -35,20 +35,40 @@ export async function GET(req: NextRequest) {
       filialId: { in: filialIds },
       competencia: { in: competencias },
     },
-    select: { competencia: true, grupoId: true, valor: true, tipo: true },
+    select: {
+      competencia: true,
+      grupoId: true,
+      valor: true,
+      tipo: true,
+      grupo: { select: { classificacao: true } },
+    },
   });
 
   // Agrupa por competência e grupoId. O Grupo 13 (Receitas/Despesas Financeiras) é o
   // único que mistura entrada e saída dentro do mesmo grupo — por isso soma com sinal
   // (entrada some, saída subtrai); os demais grupos são sempre de um único tipo.
   const porMes: Record<string, Record<number, number>> = {};
-  for (const comp of competencias) porMes[comp] = {};
+  const lancsPorMes: Record<string, typeof lancamentos> = {};
+  for (const comp of competencias) {
+    porMes[comp] = {};
+    lancsPorMes[comp] = [];
+  }
   for (const l of lancamentos) {
     if (!porMes[l.competencia]) continue;
+    lancsPorMes[l.competencia].push(l);
     const val = toNum(l.valor);
-    const valorAssinado = l.grupoId === 13 ? (l.tipo === "ENTRADA" ? val : -val) : val;
+    // Grupos de resultado financeiro misturam as duas direções no mesmo grupo,
+    // então entram com sinal; os demais são sempre de um único tipo.
+    const assina = l.grupo.classificacao === "RESULTADO_FINANCEIRO";
+    const valorAssinado = assina ? (l.tipo === "ENTRADA" ? val : -val) : val;
     porMes[l.competencia][l.grupoId] = (porMes[l.competencia][l.grupoId] || 0) + valorAssinado;
   }
+
+  const grupos = [
+    ...new Map(
+      lancamentos.map((l) => [l.grupoId, { id: l.grupoId, classificacao: l.grupo.classificacao }])
+    ).values(),
+  ];
 
   // Busca saldo inicial por mês (soma de todas as filiais)
   const saldosPorMes: Record<string, number> = {};
@@ -83,7 +103,17 @@ export async function GET(req: NextRequest) {
     const totalSaidasOp =
       custosDiretos + maoDeObra + materiaisIndiretos + despesasAdm +
       pessoalAdm + proLabore + despesasComerciais + impostosVendas + outrosImpostos;
-    const caixaLiquidoOp = calcularFluxoOperacional(recebimentos, g);
+    const indicadores = calcularIndicadores(
+      grupos,
+      totalizarLancamentos(
+        lancsPorMes[comp].map((l) => ({
+          grupoId: l.grupoId,
+          tipo: l.tipo,
+          valor: toNum(l.valor),
+        }))
+      )
+    );
+    const caixaLiquidoOp = indicadores.fluxoOperacional;
 
     // Atividades de Financiamento (grupo 13, já somado com sinal acima)
     const atividadesFinanciamento = g[13] || 0;
@@ -93,7 +123,7 @@ export async function GET(req: NextRequest) {
     const atividadesInvestimento = g[14] || 0;
     const caixaLiquidoInv = -atividadesInvestimento;
 
-    const variacaoLiquida = calcularFluxoLivre(caixaLiquidoOp, atividadesFinanciamento, atividadesInvestimento);
+    const variacaoLiquida = indicadores.fluxoLivre;
     const saldoInicial = saldosPorMes[comp] || 0;
     const saldoFinal = saldoInicial + variacaoLiquida;
 

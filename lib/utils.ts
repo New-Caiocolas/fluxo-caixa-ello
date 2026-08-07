@@ -58,21 +58,95 @@ export const META_PADRAO = {
   CUSTO_DIRETO: 50,
 } as const;
 
-export function calcularFluxoOperacional(
-  totalEntradas: number,
-  totalPorGrupo: Record<number, number>
-): number {
-  const custos = [4, 5, 6, 7, 8, 9, 10, 11, 12].reduce(
-    (acc, g) => acc + (totalPorGrupo[g] || 0),
-    0
-  );
-  return totalEntradas - custos;
+import type { Classificacao } from "@/lib/categorias";
+
+/** O mínimo que o cálculo precisa saber de um grupo. */
+export interface GrupoClassificado {
+  id: number;
+  classificacao: Classificacao;
 }
 
-export function calcularFluxoLivre(
-  fluxoOperacional: number,
-  totalGrupo13: number,
-  totalGrupo14: number
+/**
+ * Totais de um grupo separados por direção.
+ *
+ * Guardar entrada e saída em vez de um único total é o que permite tratar
+ * grupos com as duas direções (RESULTADO_FINANCEIRO, onde juros recebidos e
+ * juros pagos convivem) sem perder o sinal.
+ */
+export interface TotaisGrupo {
+  entrada: number;
+  saida: number;
+}
+
+export type TotaisPorGrupo = Record<number, TotaisGrupo>;
+
+export interface Indicadores {
+  recebimento: number;
+  custos: number;
+  fluxoOperacional: number;
+  resultadoFinanceiro: number;
+  investimento: number;
+  fluxoLivre: number;
+}
+
+function somar(
+  grupos: GrupoClassificado[],
+  totais: TotaisPorGrupo,
+  classificacao: Classificacao,
+  /** Direção "natural" do balde: entradas somam ou saídas somam. */
+  sinal: "entrada" | "saida"
 ): number {
-  return fluxoOperacional + totalGrupo13 - totalGrupo14;
+  return grupos
+    .filter((g) => g.classificacao === classificacao)
+    .reduce((acc, g) => {
+      const t = totais[g.id];
+      if (!t) return acc;
+      return acc + (sinal === "entrada" ? t.entrada - t.saida : t.saida - t.entrada);
+    }, 0);
+}
+
+/**
+ * Indicadores de fluxo de caixa, derivados da classificação de cada grupo.
+ *
+ * Antes, as listas de grupos viviam hardcoded aqui ([4..12] como custo, 13 e 14
+ * à parte). Com grupos criados pelo usuário isso não se sustenta: um grupo novo
+ * ficaria fora de toda conta e seus lançamentos sumiriam do relatório sem erro
+ * algum. Agora quem decide é o campo `classificacao` do próprio grupo.
+ *
+ * Grupos NEUTRO ficam de fora de propósito — é a única forma de registrar
+ * movimento sem afetar indicador, e exige escolha explícita de quem cria.
+ */
+export function calcularIndicadores(
+  grupos: GrupoClassificado[],
+  totais: TotaisPorGrupo
+): Indicadores {
+  const recebimento = somar(grupos, totais, "RECEBIMENTO", "entrada");
+  const custos = somar(grupos, totais, "CUSTO_OPERACIONAL", "saida");
+  const resultadoFinanceiro = somar(grupos, totais, "RESULTADO_FINANCEIRO", "entrada");
+  const investimento = somar(grupos, totais, "INVESTIMENTO", "saida");
+
+  const fluxoOperacional = recebimento - custos;
+  const fluxoLivre = fluxoOperacional + resultadoFinanceiro - investimento;
+
+  return {
+    recebimento,
+    custos,
+    fluxoOperacional,
+    resultadoFinanceiro,
+    investimento,
+    fluxoLivre,
+  };
+}
+
+/** Agrupa lançamentos em totais por grupo e direção. */
+export function totalizarLancamentos(
+  lancamentos: { grupoId: number; tipo: string; valor: number }[]
+): TotaisPorGrupo {
+  const totais: TotaisPorGrupo = {};
+  for (const l of lancamentos) {
+    const t = (totais[l.grupoId] ??= { entrada: 0, saida: 0 });
+    if (l.tipo === "ENTRADA") t.entrada += l.valor;
+    else t.saida += l.valor;
+  }
+  return totais;
 }
