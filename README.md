@@ -12,13 +12,16 @@ Sistema de gestão de fluxo de caixa diário para o Grupo ELLO com suporte a mú
 
 ## Funcionalidades
 
-- Dashboard executivo com KPIs e gráficos
-- Lançamentos diários (entradas/saídas) com 14 grupos e subcategorias
+- Dashboard executivo com KPIs, gráficos e DFC (Demonstrativo do Fluxo de Caixa)
+- Lançamentos — hub com três abas:
+  - **Diários**: entradas/saídas com 14 grupos e subcategorias
+  - **Faturamento**: registro de NFs por competência
+  - **Folha de Pagamento**: cálculo de salários, encargos e totais por filial
 - Visão mensal — tabela com colunas por dia, grupos colapsáveis
 - Consolidado anual — tabela por mês com indicadores de meta
-- Folha de pagamento — cálculo de salários, encargos e totais por filial
-- Faturamento vs Recebimento — análise de inadimplência e margem
-- Configurações de filiais e metas
+- Gestão de usuários (ADMIN) com e-mail de boas-vindas e troca de senha obrigatória
+- Configurações de filiais e metas por filial
+- Permissões por papel (ADMIN / GESTOR / OPERADOR)
 
 ## Requisitos
 
@@ -66,17 +69,18 @@ Acesse: http://localhost:3000
 ├── app/
 │   ├── (auth)/login/      # Página de login
 │   ├── (dashboard)/       # Páginas autenticadas
-│   │   ├── dashboard/     # Dashboard executivo
-│   │   ├── lancamentos/   # Lançamentos diários
+│   │   ├── dashboard/     # Dashboard executivo + DFC
+│   │   ├── lancamentos/   # Lançamentos (Diários | Faturamento | Folha)
 │   │   ├── mensal/        # Visão mensal
 │   │   ├── consolidado/   # Consolidado anual
-│   │   ├── folha/         # Folha de pagamento
-│   │   ├── faturamento/   # Faturamento vs Recebimento
-│   │   └── configuracoes/ # Configurações
+│   │   ├── usuarios/      # Gestão de usuários (ADMIN)
+│   │   └── configuracoes/ # Filiais, metas, limpar base
 │   └── api/               # API Routes
 ├── components/            # Componentes React
-├── lib/                   # Utilitários, auth, Prisma
+├── lib/                   # Utilitários, auth, permissões, Prisma
 ├── prisma/                # Schema e seed
+├── proxy.ts               # Proteção server-side de rotas (Next.js 16)
+├── tests/                 # Testes unitários (Vitest)
 └── types/                 # TypeScript types
 ```
 
