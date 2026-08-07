@@ -20,6 +20,7 @@ export const ACOES = [
   "funcionario:criar",
   "funcionario:editar",
   "meta:configurar",
+  "categoria:gerenciar",
   "usuario:gerenciar",
   "base:limpar",
   "auditoria:ler",
@@ -51,6 +52,7 @@ const PERMISSOES = new Map<Papel, readonly Acao[]>([
       "funcionario:criar",
       "funcionario:editar",
       "meta:configurar",
+      "categoria:gerenciar",
     ],
   ],
 
