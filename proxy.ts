@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth";
+import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 
 /**
  * Rotas públicas — não exigem autenticação.
@@ -22,7 +22,10 @@ export function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = req.cookies.get("auth-token")?.value;
+  // Usa a mesma extração das rotas (cookie OU Authorization: Bearer). Ler só o
+  // cookie aqui criaria duas noções de "autenticado": um cliente com Bearer
+  // seria aceito pela rota e barrado pelo proxy.
+  const token = getTokenFromRequest(req);
   const isValid = token ? verifyToken(token) : null;
 
   // APIs protegidas retornam 401 JSON em vez de redirect
