@@ -37,7 +37,9 @@ export default function DashboardLayout({
     <FilialProvider>
       <div className="flex h-screen overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto bg-gray-50">
+        {/* pt-14 abre espaço para a barra superior fixa do mobile; no desktop a
+            barra não existe e a sidebar volta a ocupar coluna no fluxo. */}
+        <main className="flex-1 overflow-y-auto bg-gray-50 pt-14 lg:pt-0">
           {children}
         </main>
       </div>

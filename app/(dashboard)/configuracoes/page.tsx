@@ -134,7 +134,7 @@ export default function ConfiguracoesPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       <Header title="Configurações" subtitle="Filiais, usuários e preferências do sistema" />
 
       {/* Filiais */}

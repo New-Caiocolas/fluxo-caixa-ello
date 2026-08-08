@@ -134,7 +134,7 @@ export default function ConsolidadoPage() {
   const mesesMeta = data.filter((m) => m.percentFluxoLivre >= metaFluxoLivre).length;
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 sm:p-6 space-y-5">
       <Header title={`Consolidado Anual — ${ano}`} subtitle="Visão por mês de todas as categorias" />
 
       {/* Controles */}

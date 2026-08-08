@@ -164,7 +164,7 @@ export default function MensalPage() {
   ];
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-4 sm:p-6 space-y-4">
       <Header
         title={`Visão Mensal — ${mesNome(mes)} ${ano}`}
         subtitle="Lançamentos diários por categoria"

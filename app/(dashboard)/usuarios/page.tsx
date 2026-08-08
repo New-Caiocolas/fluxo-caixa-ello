@@ -137,7 +137,7 @@ export default function UsuariosPage() {
   const deletando = usuarios.find((u) => u.id === deleteId);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       <Header title="Gerenciamento de Usuários" subtitle="Cadastre e gerencie perfis de acesso ao sistema" />
 
       {/* Cartões de resumo */}
