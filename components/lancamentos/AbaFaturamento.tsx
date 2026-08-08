@@ -182,7 +182,50 @@ export function AbaFaturamento() {
         <div className="px-6 py-4 border-b">
           <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Registros de NF</h3>
         </div>
-        <div className="overflow-x-auto">
+        {/* Cartões — abaixo de sm */}
+        <div className="sm:hidden divide-y divide-gray-100">
+          {loading ? (
+            <div className="py-8 text-center">
+              <div className="inline-block w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : faturamentos.length === 0 ? (
+            <p className="py-8 text-center text-gray-400 text-sm">Nenhum registro encontrado</p>
+          ) : (
+            faturamentos.map((f) => (
+              <div key={f.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-medium text-gray-900 min-w-0 break-words">
+                    {f.descricao || "Sem descrição"}
+                  </p>
+                  <p className="text-sm font-semibold text-blue-600 whitespace-nowrap">
+                    {formatCurrency(Number(f.valorNF))}
+                  </p>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  {f.filial?.nome} · {f.competencia}
+                </p>
+                {canEdit && (
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={() => abrirEdicao(f)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-xs text-blue-600 hover:bg-blue-50"
+                    >
+                      <Edit size={14} /> Editar
+                    </button>
+                    <button
+                      onClick={() => setDeleteId(f.id)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-xs text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 size={14} /> Excluir
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="overflow-x-auto hidden sm:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b">

@@ -129,7 +129,63 @@ export function AbaDiarios() {
 
       {/* Tabela */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Cartões — abaixo de sm. Um lançamento é um registro independente, então
+            empilhar não perde comparação lateral nenhuma; a tabela de 7 colunas
+            obrigaria a rolar de lado para ler uma linha só. */}
+        <div className="sm:hidden divide-y divide-gray-100">
+          {loading ? (
+            <div className="py-12 text-center">
+              <div className="inline-block w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : lancamentos.length === 0 ? (
+            <p className="py-12 text-center text-gray-400 text-sm">Nenhum lançamento encontrado</p>
+          ) : (
+            lancamentos.map((l) => (
+              <div key={l.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-medium text-gray-900 min-w-0 break-words">
+                    {l.descricao}
+                  </p>
+                  <p
+                    className={`text-sm font-semibold whitespace-nowrap ${
+                      l.tipo === "ENTRADA" ? "text-emerald-600" : "text-red-600"
+                    }`}
+                  >
+                    {l.tipo === "ENTRADA" ? "+" : "−"}
+                    {formatCurrency(Number(l.valor))}
+                  </p>
+                </div>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  {formatDate(l.data)} · {l.grupo?.nome}
+                  {l.subgrupo && ` · ${l.subgrupo.nome}`}
+                </p>
+                <p className="text-xs text-gray-400">{l.filial?.nome || "—"}</p>
+
+                {canEdit && (
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={() => { setEditItem(l); setModalOpen(true); }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-xs text-blue-600 hover:bg-blue-50"
+                    >
+                      <Edit size={14} /> Editar
+                    </button>
+                    {canDelete && (
+                      <button
+                        onClick={() => setDeleteId(l.id)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-xs text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 size={14} /> Excluir
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="overflow-x-auto hidden sm:block">
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
