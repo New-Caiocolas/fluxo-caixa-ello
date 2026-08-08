@@ -215,7 +215,7 @@ export default function UsuariosPage() {
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => abrirEditar(u)}
-                        className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors"
+                        className="p-2.5 sm:p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors"
                         title="Editar"
                       >
                         <Edit size={15} />

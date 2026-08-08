@@ -211,14 +211,14 @@ export function AbaFaturamento() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => abrirEdicao(f)}
-                          className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors"
+                          className="p-2.5 sm:p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors"
                           title="Editar"
                         >
                           <Edit size={15} />
                         </button>
                         <button
                           onClick={() => setDeleteId(f.id)}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
+                          className="p-2.5 sm:p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
                           title="Excluir"
                         >
                           <Trash2 size={15} />

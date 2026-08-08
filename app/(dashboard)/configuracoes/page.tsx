@@ -251,7 +251,9 @@ export default function ConfiguracoesPage() {
                           type="button"
                           title={ativa ? "Meta ativa — clique para desativar" : "Meta inativa — clique para ativar"}
                           onClick={() => toggleMetaAtiva(meta)}
-                          className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                          // min-h-6 garante os 24px mínimos de alvo de toque
+                          // (WCAG 2.5.8); antes o botão tinha 19px de altura.
+                          className={`text-[10px] font-medium px-2 py-1 min-h-6 rounded-full ${
                             ativa ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"
                           }`}
                         >

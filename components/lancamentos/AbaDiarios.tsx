@@ -190,7 +190,7 @@ export function AbaDiarios() {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => { setEditItem(l); setModalOpen(true); }}
-                            className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors"
+                            className="p-2.5 sm:p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors"
                             title="Editar"
                           >
                             <Edit size={15} />
@@ -198,7 +198,7 @@ export function AbaDiarios() {
                           {canDelete && (
                             <button
                               onClick={() => setDeleteId(l.id)}
-                              className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
+                              className="p-2.5 sm:p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
                               title="Excluir"
                             >
                               <Trash2 size={15} />

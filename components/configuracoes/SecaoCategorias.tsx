@@ -237,7 +237,9 @@ export function SecaoCategorias() {
                 <button
                   type="button"
                   onClick={() => alternar(g.id)}
-                  className="text-gray-400 hover:text-gray-600"
+                  // O ícone tem 16px; o padding leva o alvo de toque aos 24px
+                  // mínimos sem mudar o tamanho aparente do chevron.
+                  className="p-1 -m-1 text-gray-400 hover:text-gray-600"
                   aria-label={aberto ? "Recolher subcategorias" : "Expandir subcategorias"}
                 >
                   {aberto ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -270,7 +272,7 @@ export function SecaoCategorias() {
                     <button
                       type="button"
                       onClick={() => alternarAtivoGrupo(g)}
-                      className={`text-xs px-2 py-1 rounded ${
+                      className={`text-xs px-2 py-1 min-h-6 rounded ${
                         g.ativo ? "text-emerald-700 hover:bg-emerald-50" : "text-gray-500 hover:bg-gray-100"
                       }`}
                       title={g.ativo ? "Desativar (some dos formulários)" : "Reativar"}
@@ -300,7 +302,7 @@ export function SecaoCategorias() {
                               setNomeSub(s.nome);
                               setErroForm("");
                             }}
-                            className="p-1 text-gray-400 hover:text-emerald-600"
+                            className="p-2 text-gray-400 hover:text-emerald-600"
                             title="Renomear"
                           >
                             <Pencil size={12} />
@@ -308,7 +310,7 @@ export function SecaoCategorias() {
                           <button
                             type="button"
                             onClick={() => alternarAtivoSub(s.id, s.nome, s.ativo)}
-                            className="text-xs px-2 py-0.5 rounded text-gray-500 hover:bg-gray-200"
+                            className="text-xs px-2 py-1 min-h-6 rounded text-gray-500 hover:bg-gray-200"
                           >
                             {s.ativo ? "Ativa" : "Inativa"}
                           </button>
