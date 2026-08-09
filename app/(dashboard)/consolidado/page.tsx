@@ -8,6 +8,8 @@ import { formatCurrency, formatPercent, META_PADRAO } from "@/lib/utils";
 import { useGrupos } from "@/lib/hooks/useGrupos";
 import { Meta } from "@/types";
 import {
+  ChevronDown,
+  ChevronRight,
   Download,
   CheckCircle2,
   XCircle,
@@ -36,6 +38,10 @@ export default function ConsolidadoPage() {
   const [data, setData] = useState<AnualData[]>([]);
   const [loading, setLoading] = useState(false);
   const [metas, setMetas] = useState<Meta[]>([]);
+
+  // Estado do resumo mobile — ver comentário no bloco lg:hidden abaixo.
+  const [expandidoMobile, setExpandidoMobile] = useState<Set<number>>(new Set());
+  const [verGradeCompleta, setVerGradeCompleta] = useState(false);
 
   const zero: AnualData = {
     competencia: "",
@@ -275,7 +281,95 @@ export default function ConsolidadoPage() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
+          {/* Resumo — abaixo de lg. Mesmo princípio da visão mensal: total do
+              ano visível sem rolagem, meses revelados ao toque, e mês sem
+              movimento fica de fora em vez de virar mais um travessão. */}
+          <div className={cn("lg:hidden", verGradeCompleta && "hidden")}>
+            <div className="divide-y divide-gray-100">
+              {GRUPOS.map((g) => {
+                const totalAno = getGrupoTotal(g.id);
+                if (totalAno === 0) return null;
+                const aberto = expandidoMobile.has(g.id);
+                const mesesComMovimento = data
+                  .map((m, i) => ({ mes: MESES[i], valor: m.porGrupo[g.id] || 0 }))
+                  .filter((m) => m.valor !== 0);
+
+                return (
+                  <div key={g.id}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandidoMobile((atual) => {
+                          const novo = new Set(atual);
+                          if (novo.has(g.id)) novo.delete(g.id);
+                          else novo.add(g.id);
+                          return novo;
+                        })
+                      }
+                      aria-expanded={aberto}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-gray-50"
+                    >
+                      {aberto ? (
+                        <ChevronDown size={16} className="shrink-0 text-gray-400" />
+                      ) : (
+                        <ChevronRight size={16} className="shrink-0 text-gray-400" />
+                      )}
+                      <span className="flex-1 min-w-0 text-sm text-gray-700 truncate">
+                        {g.nome}
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900 tabular-nums whitespace-nowrap">
+                        {formatCurrency(totalAno)}
+                      </span>
+                    </button>
+
+                    {aberto && (
+                      <div className="bg-gray-50 px-4 py-3 pl-10">
+                        <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                          Meses com movimento
+                        </p>
+                        {mesesComMovimento.length === 0 ? (
+                          <p className="text-xs text-gray-400">Sem movimento no ano.</p>
+                        ) : (
+                          mesesComMovimento.map((m) => (
+                            <div key={m.mes} className="flex justify-between gap-3 py-0.5">
+                              <span className="text-xs text-gray-600">{m.mes}</span>
+                              <span className="text-xs text-gray-700 tabular-nums">
+                                {formatCurrency(m.valor)}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="border-t border-gray-100 p-3">
+              <button
+                type="button"
+                onClick={() => setVerGradeCompleta(true)}
+                className="w-full py-2.5 text-xs text-gray-600 rounded-lg border border-gray-200 hover:bg-gray-50"
+              >
+                Ver grade completa (mês a mês)
+              </button>
+            </div>
+          </div>
+
+          {verGradeCompleta && (
+            <div className="lg:hidden border-b border-gray-100 p-3">
+              <button
+                type="button"
+                onClick={() => setVerGradeCompleta(false)}
+                className="w-full py-2.5 text-xs text-gray-600 rounded-lg border border-gray-200 hover:bg-gray-50"
+              >
+                Voltar ao resumo
+              </button>
+            </div>
+          )}
+
+          <div className={cn("overflow-x-auto", !verGradeCompleta && "hidden lg:block")}>
             <table className="w-full text-xs border-collapse" suppressHydrationWarning>
               <thead>
                 <tr className="bg-gray-900 text-white">

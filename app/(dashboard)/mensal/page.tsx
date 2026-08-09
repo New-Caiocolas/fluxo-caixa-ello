@@ -47,6 +47,11 @@ export default function MensalPage() {
   const [loading, setLoading] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
 
+  // Estado próprio do resumo mobile: no celular tudo começa recolhido, enquanto
+  // na tabela do desktop `collapsed` vazio significa tudo expandido.
+  const [expandidoMobile, setExpandidoMobile] = useState<Set<number>>(new Set());
+  const [verGradeCompleta, setVerGradeCompleta] = useState(false);
+
   // Inclui grupos inativos de propósito: meses passados podem ter lançamentos
   // em grupos que já foram desativados, e eles precisam continuar aparecendo.
   const { grupos: GRUPOS } = useGrupos();
@@ -251,7 +256,120 @@ export default function MensalPage() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
+          {/* Resumo — abaixo de lg.
+              A grade tem 31 colunas e, num mês típico, mais de 90% das células
+              estão vazias: no celular a pessoa rolaria dezenas de travessões
+              para achar três números. Aqui o total de cada categoria aparece
+              sem rolagem, e o toque revela só os dias com movimento. */}
+          <div className={cn("lg:hidden", verGradeCompleta && "hidden")}>
+            <div className="divide-y divide-gray-100">
+              {GRUPOS.map((g) => {
+                const gData = data?.grupos[g.id];
+                if (!gData) return null;
+                const aberto = expandidoMobile.has(g.id);
+                const diasComMovimento = Object.entries(gData.porDia)
+                  .filter(([, v]) => v !== 0)
+                  .sort((a, b) => Number(a[0]) - Number(b[0]));
+                const subgrupos = Object.entries(gData.subgrupos).filter(
+                  ([, s]) => s.total !== 0
+                );
+
+                return (
+                  <div key={g.id}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandidoMobile((atual) => {
+                          const novo = new Set(atual);
+                          if (novo.has(g.id)) novo.delete(g.id);
+                          else novo.add(g.id);
+                          return novo;
+                        })
+                      }
+                      aria-expanded={aberto}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-gray-50"
+                    >
+                      {aberto ? (
+                        <ChevronDown size={16} className="shrink-0 text-gray-400" />
+                      ) : (
+                        <ChevronRight size={16} className="shrink-0 text-gray-400" />
+                      )}
+                      <span className="flex-1 min-w-0 text-sm text-gray-700 truncate">
+                        {g.nome}
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900 tabular-nums whitespace-nowrap">
+                        {formatCurrency(gData.total)}
+                      </span>
+                    </button>
+
+                    {aberto && (
+                      <div className="bg-gray-50 px-4 py-3 pl-10 space-y-3">
+                        {subgrupos.length > 0 && (
+                          <div>
+                            <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                              Subcategorias
+                            </p>
+                            {subgrupos.map(([sId, s]) => (
+                              <div key={sId} className="flex justify-between gap-3 py-0.5">
+                                <span className="text-xs text-gray-600 min-w-0 truncate">
+                                  {s.nome}
+                                </span>
+                                <span className="text-xs text-gray-700 tabular-nums whitespace-nowrap">
+                                  {formatCurrency(s.total)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div>
+                          <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                            Dias com movimento
+                          </p>
+                          {diasComMovimento.length === 0 ? (
+                            <p className="text-xs text-gray-400">Nenhum lançamento no mês.</p>
+                          ) : (
+                            diasComMovimento.map(([dia, valor]) => (
+                              <div key={dia} className="flex justify-between gap-3 py-0.5">
+                                <span className="text-xs text-gray-600">dia {dia}</span>
+                                <span className="text-xs text-gray-700 tabular-nums">
+                                  {formatCurrency(valor)}
+                                </span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="border-t border-gray-100 p-3">
+              <button
+                type="button"
+                onClick={() => setVerGradeCompleta(true)}
+                className="w-full py-2.5 text-xs text-gray-600 rounded-lg border border-gray-200 hover:bg-gray-50"
+              >
+                Ver grade completa (dia a dia)
+              </button>
+            </div>
+          </div>
+
+          {verGradeCompleta && (
+            <div className="lg:hidden border-b border-gray-100 p-3">
+              <button
+                type="button"
+                onClick={() => setVerGradeCompleta(false)}
+                className="w-full py-2.5 text-xs text-gray-600 rounded-lg border border-gray-200 hover:bg-gray-50"
+              >
+                Voltar ao resumo
+              </button>
+            </div>
+          )}
+
+          <div className={cn("overflow-x-auto", !verGradeCompleta && "hidden lg:block")}>
             <table className="w-full text-xs border-collapse" suppressHydrationWarning>
               <thead>
                 <tr className="bg-gray-900 text-white">
