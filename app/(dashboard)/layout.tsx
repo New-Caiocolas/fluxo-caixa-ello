@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/lib/context/AuthContext";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { BarraInferior } from "@/components/layout/BarraInferior";
 import { FilialProvider } from "@/lib/context/FilialContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -37,11 +38,13 @@ export default function DashboardLayout({
     <FilialProvider>
       <div className="flex h-screen overflow-hidden">
         <Sidebar />
-        {/* pt-14 abre espaço para a barra superior fixa do mobile; no desktop a
-            barra não existe e a sidebar volta a ocupar coluna no fluxo. */}
-        <main className="flex-1 overflow-y-auto bg-gray-50 pt-14 lg:pt-0">
+        {/* pt-14 abre espaço para a barra superior fixa do mobile e pb-16 para a
+            inferior; no desktop nenhuma das duas existe e a sidebar volta a
+            ocupar coluna no fluxo. */}
+        <main className="flex-1 overflow-y-auto bg-gray-50 pt-14 pb-16 lg:pt-0 lg:pb-0">
           {children}
         </main>
+        <BarraInferior />
       </div>
     </FilialProvider>
   );
