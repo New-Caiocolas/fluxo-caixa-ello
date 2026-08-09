@@ -99,6 +99,31 @@ export async function DELETE(
     return NextResponse.json({ error: "Você não pode excluir sua própria conta" }, { status: 400 });
   }
 
+  // Lancamento e AuditLog referenciam User com RESTRICT, de propósito: apagar
+  // quem lançou reescreveria o histórico financeiro e a trilha de auditoria.
+  // Sem esta checagem o banco recusava a exclusão com violação de chave
+  // estrangeira, que subia como 500 — a tela dizia "erro no servidor" para o
+  // que é, na verdade, uma regra de negócio.
+  const [lancamentos, auditorias] = await Promise.all([
+    prisma.lancamento.count({ where: { userId: id } }),
+    prisma.auditLog.count({ where: { userId: id } }),
+  ]);
+
+  if (lancamentos > 0 || auditorias > 0) {
+    const partes = [];
+    if (lancamentos > 0) partes.push(`${lancamentos} lançamento(s)`);
+    if (auditorias > 0) partes.push(`${auditorias} registro(s) de auditoria`);
+    return NextResponse.json(
+      {
+        error:
+          `Este usuário tem ${partes.join(" e ")} no histórico e não pode ser excluído — ` +
+          "apagá-lo reescreveria registros financeiros já lançados. " +
+          "Para tirar o acesso, altere o perfil para OPERADOR e troque a senha.",
+      },
+      { status: 409 }
+    );
+  }
+
   // Hoje o bloqueio de auto-exclusão acima já impede que a exclusão zere os
   // ADMINs (quem executa sempre permanece). A checagem é repetida aqui para
   // que a invariante não dependa dessa outra regra continuar existindo.
@@ -125,6 +150,14 @@ export async function DELETE(
   } catch (err) {
     if (err instanceof UltimoAdminError) {
       return NextResponse.json({ error: ERRO_ULTIMO_ADMIN }, { status: 409 });
+    }
+    // Rede de segurança: se surgir outra relação com RESTRICT no futuro, é
+    // melhor explicar que há vínculo do que devolver 500.
+    if (typeof err === "object" && err !== null && (err as { code?: string }).code === "P2003") {
+      return NextResponse.json(
+        { error: "Este usuário tem registros vinculados e não pode ser excluído." },
+        { status: 409 }
+      );
     }
     throw err;
   }
