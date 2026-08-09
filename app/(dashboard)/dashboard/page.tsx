@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import {
   DollarSign, TrendingUp, Activity, Wallet, AlertTriangle,
-  BarChart2, Zap, TrendingDown, ChevronRight,
+  BarChart2, Zap, TrendingDown, ChevronRight, ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -136,6 +136,11 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [loadingDFC, setLoadingDFC] = useState(false);
   const [aba, setAba] = useState<"visao-geral" | "dfc">("visao-geral");
+
+  // Resumo mobile do DFC — indexado pela posição em DFC_LINHAS, já que as
+  // linhas não têm id próprio.
+  const [dfcExpandido, setDfcExpandido] = useState<Set<number>>(new Set());
+  const [verDfcCompleto, setVerDfcCompleto] = useState(false);
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
@@ -606,7 +611,129 @@ export default function DashboardPage() {
                     Demonstração do Fluxo de Caixa — Método Direto — {ano}
                   </h3>
                 </div>
-                <div className="overflow-x-auto">
+                {/* Resumo — abaixo de lg.
+                    Diferente do mensal e do consolidado, aqui as linhas são um
+                    demonstrativo com seções e subtotais, então a hierarquia é
+                    preservada: seção continua sendo cabeçalho, subtotal continua
+                    destacado. O que muda é que o valor do ano fica à vista e os
+                    12 meses só aparecem ao toque. */}
+                <div className={cn("lg:hidden", verDfcCompleto && "hidden")}>
+                  <div className="divide-y divide-gray-100">
+                    {DFC_LINHAS.map((linha, idx) => {
+                      if (linha.tipo === "secao") {
+                        const c = SECAO_COR[linha.cor];
+                        return (
+                          <div
+                            key={idx}
+                            className={cn("px-4 py-2 text-[11px] font-semibold tracking-wide", c.bg, c.text)}
+                          >
+                            {linha.label}
+                          </div>
+                        );
+                      }
+
+                      const totalAno = dfcTotais[linha.key] ?? 0;
+                      const aberto = dfcExpandido.has(idx);
+                      // Saldo é posição, não fluxo: mostra todos os meses com
+                      // valor, já que "mês sem movimento" não se aplica.
+                      const meses = dfcData
+                        .map((m, i) => ({ mes: MESES[i], valor: m[linha.key] as number }))
+                        .filter((m) => m.valor !== 0);
+
+                      const destaque = linha.tipo === "subtotal" || linha.tipo === "total";
+
+                      return (
+                        <div key={idx}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDfcExpandido((atual) => {
+                                const novo = new Set(atual);
+                                if (novo.has(idx)) novo.delete(idx);
+                                else novo.add(idx);
+                                return novo;
+                              })
+                            }
+                            aria-expanded={aberto}
+                            className={cn(
+                              "w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-gray-50",
+                              destaque && "bg-gray-50"
+                            )}
+                          >
+                            {aberto ? (
+                              <ChevronDown size={14} className="shrink-0 text-gray-400" />
+                            ) : (
+                              <ChevronRight size={14} className="shrink-0 text-gray-400" />
+                            )}
+                            <span
+                              className={cn(
+                                "flex-1 min-w-0 text-xs truncate",
+                                destaque ? "font-semibold text-gray-900" : "text-gray-600"
+                              )}
+                            >
+                              {linha.label}
+                            </span>
+                            <span
+                              className={cn(
+                                "text-xs tabular-nums whitespace-nowrap",
+                                destaque ? "font-semibold" : "",
+                                totalAno < 0 ? "text-red-600" : "text-gray-900"
+                              )}
+                            >
+                              {formatCurrency(totalAno)}
+                            </span>
+                          </button>
+
+                          {aberto && (
+                            <div className="bg-gray-50 px-4 py-2 pl-10">
+                              {meses.length === 0 ? (
+                                <p className="text-xs text-gray-400">Sem movimento no ano.</p>
+                              ) : (
+                                meses.map((m) => (
+                                  <div key={m.mes} className="flex justify-between gap-3 py-0.5">
+                                    <span className="text-xs text-gray-600">{m.mes}</span>
+                                    <span
+                                      className={cn(
+                                        "text-xs tabular-nums",
+                                        m.valor < 0 ? "text-red-600" : "text-gray-700"
+                                      )}
+                                    >
+                                      {formatCurrency(m.valor)}
+                                    </span>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="border-t border-gray-100 p-3">
+                    <button
+                      type="button"
+                      onClick={() => setVerDfcCompleto(true)}
+                      className="w-full py-2.5 text-xs text-gray-600 rounded-lg border border-gray-200 hover:bg-gray-50"
+                    >
+                      Ver grade completa (mês a mês)
+                    </button>
+                  </div>
+                </div>
+
+                {verDfcCompleto && (
+                  <div className="lg:hidden border-b border-gray-100 p-3">
+                    <button
+                      type="button"
+                      onClick={() => setVerDfcCompleto(false)}
+                      className="w-full py-2.5 text-xs text-gray-600 rounded-lg border border-gray-200 hover:bg-gray-50"
+                    >
+                      Voltar ao resumo
+                    </button>
+                  </div>
+                )}
+
+                <div className={cn("overflow-x-auto", !verDfcCompleto && "hidden lg:block")}>
                   <table className="w-full text-xs border-collapse" suppressHydrationWarning>
                     <thead>
                       <tr className="bg-gray-900 text-white">
