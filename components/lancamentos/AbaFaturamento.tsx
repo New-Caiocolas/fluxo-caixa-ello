@@ -38,6 +38,7 @@ export function AbaFaturamento() {
   const [faturamentos, setFaturamentos] = useState<FaturamentoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
+  const [erroForm, setErroForm] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<FaturamentoItem | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -72,21 +73,24 @@ export function AbaFaturamento() {
   }
 
   async function handleSalvar() {
+    setErroForm(null);
     setSalvando(true);
     try {
       const url = editItem ? `/api/faturamento/${editItem.id}` : "/api/faturamento";
       const method = editItem ? "PUT" : "POST";
-      const res = await fetch(url, {
+      const r = await buscarJson(url, {
         method, headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, valorNF: Number(form.valorNF) }),
       });
-      if (res.ok) { setModalOpen(false); setEditItem(null); fetchFaturamento(); }
+      if (r.ok) { setModalOpen(false); setEditItem(null); fetchFaturamento(); }
+      else setErroForm(r.erro);
     } finally { setSalvando(false); }
   }
 
   async function handleDelete(id: string) {
-    const res = await fetch(`/api/faturamento/${id}`, { method: "DELETE" });
-    if (res.ok) { setDeleteId(null); fetchFaturamento(); }
+    const r = await buscarJson(`/api/faturamento/${id}`, { method: "DELETE" });
+    if (r.ok) { setDeleteId(null); fetchFaturamento(); }
+    else setErroForm(r.erro);
   }
 
   const totalFaturado = comparativo.reduce((a, m) => a + m.faturado, 0);
@@ -312,6 +316,9 @@ export function AbaFaturamento() {
             <input id="fat-descricao" type="text" value={form.descricao} onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
+          {erroForm && (
+            <p role="alert" className="text-sm text-red-600">{erroForm}</p>
+          )}
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => { setModalOpen(false); setEditItem(null); }}>Cancelar</Button>
             <Button loading={salvando} onClick={handleSalvar}>

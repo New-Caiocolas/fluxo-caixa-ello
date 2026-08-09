@@ -86,6 +86,8 @@ export function AbaFolha() {
   const [data, setData] = useState<FolhaData | null>(null);
   const [loading, setLoading] = useState(false);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
+  const [erroFunc, setErroFunc] = useState<string | null>(null);
+  const [erroFolha, setErroFolha] = useState<string | null>(null);
   const [filiais, setFiliais] = useState<Array<{ id: string; nome: string }>>([]);
   const [modalFuncOpen, setModalFuncOpen] = useState(false);
   const [funcEditandoId, setFuncEditandoId] = useState<string | null>(null);
@@ -168,6 +170,7 @@ export function AbaFolha() {
   }
 
   async function salvarFolha() {
+    setErroFolha(null);
     if (!data) return;
     setSalvandoFolha(true);
     try {
@@ -184,16 +187,15 @@ export function AbaFolha() {
         totalEncargos: item.totalEncargos,
         totalPagar: item.totalPagar,
       }));
-      const res = await fetch("/api/folha", {
+      const r = await buscarJson("/api/folha", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ competencia, itens }),
       });
-      if (res.ok) {
-        setModoEdicao(false);
-        setComissoesEdit({});
-        await fetchFolha();
-      }
+      if (!r.ok) { setErroFolha(r.erro); return; }
+      setModoEdicao(false);
+      setComissoesEdit({});
+      await fetchFolha();
     } finally {
       setSalvandoFolha(false);
     }
@@ -222,22 +224,22 @@ export function AbaFolha() {
   }
 
   async function salvarFuncionario() {
+    setErroFunc(null);
     setSalvandoFunc(true);
     try {
       const url = funcEditandoId
         ? `/api/funcionarios?id=${funcEditandoId}`
         : "/api/funcionarios";
       const method = funcEditandoId ? "PUT" : "POST";
-      const res = await fetch(url, {
+      const r = await buscarJson(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(funcForm),
       });
-      if (res.ok) {
-        setModalFuncOpen(false);
-        setFuncEditandoId(null);
-        fetchFolha();
-      }
+      if (!r.ok) { setErroFunc(r.erro); return; }
+      setModalFuncOpen(false);
+      setFuncEditandoId(null);
+      fetchFolha();
     } finally {
       setSalvandoFunc(false);
     }
@@ -300,6 +302,9 @@ export function AbaFolha() {
               <Button variant="outline" size="sm" onClick={cancelarEdicao}>
                 <X size={14} /> Cancelar
               </Button>
+              {erroFolha && (
+                <p role="alert" className="text-xs text-red-600 mr-2 self-center">{erroFolha}</p>
+              )}
               <Button size="sm" loading={salvandoFolha} onClick={salvarFolha}>
                 <Save size={14} /> Salvar Folha
               </Button>
@@ -627,6 +632,9 @@ export function AbaFolha() {
               />
             </div>
           </div>
+          {erroFunc && (
+            <p role="alert" className="text-sm text-red-600">{erroFunc}</p>
+          )}
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => { setModalFuncOpen(false); setFuncEditandoId(null); }}>Cancelar</Button>
             <Button loading={salvandoFunc} onClick={salvarFuncionario}>{funcEditandoId ? "Salvar Alterações" : "Cadastrar"}</Button>

@@ -64,16 +64,13 @@ export function AbaDiarios() {
     const url = editItem ? `/api/lancamentos/${editItem.id}` : "/api/lancamentos";
     const method = editItem ? "PUT" : "POST";
 
-    const res = await fetch(url, {
+    // O FormLancamento captura o throw e exibe a mensagem no próprio formulário.
+    const r = await buscarJson(url, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || "Erro ao salvar");
-    }
+    if (!r.ok) throw new Error(r.erro);
 
     setModalOpen(false);
     setEditItem(undefined);

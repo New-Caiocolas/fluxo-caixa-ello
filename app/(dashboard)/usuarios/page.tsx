@@ -54,6 +54,7 @@ export default function UsuariosPage() {
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
   const [erroCarga, setErroCarga] = useState<string | null>(null);
+  const [erroExclusao, setErroExclusao] = useState<string | null>(null);
   const [mostrarSenha, setMostrarSenha] = useState(false);
 
   useEffect(() => {
@@ -113,14 +114,12 @@ export default function UsuariosPage() {
         ? { name: form.name, email: form.email, role: form.role, password: form.password || undefined }
         : form;
 
-      const res = await fetch(url, {
+      const r = await buscarJson(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-
-      const json = await res.json();
-      if (!res.ok) { setErro(json.error || "Erro ao salvar"); return; }
+      if (!r.ok) { setErro(r.erro); return; }
 
       setModalOpen(false);
       fetchUsuarios();
@@ -130,9 +129,8 @@ export default function UsuariosPage() {
   }
 
   async function excluir(id: string) {
-    const res = await fetch(`/api/usuarios/${id}`, { method: "DELETE" });
-    const json = await res.json();
-    if (!res.ok) { alert(json.error); return; }
+    const r = await buscarJson(`/api/usuarios/${id}`, { method: "DELETE" });
+    if (!r.ok) { setErroExclusao(r.erro); return; }
     setDeleteId(null);
     fetchUsuarios();
   }
@@ -206,7 +204,7 @@ export default function UsuariosPage() {
                     <Edit size={14} /> Editar
                   </button>
                   <button
-                    onClick={() => setDeleteId(u.id)}
+                    onClick={() => { setErroExclusao(null); setDeleteId(u.id); }}
                     disabled={u.id === user?.id}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-xs text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
                     title={u.id === user?.id ? "Não é possível excluir sua própria conta" : undefined}
@@ -275,7 +273,7 @@ export default function UsuariosPage() {
                         <Edit size={15} />
                       </button>
                       <button
-                        onClick={() => setDeleteId(u.id)}
+                        onClick={() => { setErroExclusao(null); setDeleteId(u.id); }}
                         disabled={u.id === user?.id}
                         className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                         title={u.id === user?.id ? "Não é possível excluir sua própria conta" : "Excluir"}
@@ -405,6 +403,9 @@ export default function UsuariosPage() {
         <p className="text-xs text-gray-400 mb-6">
           Esta ação não pode ser desfeita. Os lançamentos criados por este usuário serão mantidos.
         </p>
+          {erroExclusao && (
+            <p role="alert" className="text-sm text-red-600">{erroExclusao}</p>
+          )}
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={() => setDeleteId(null)}>Cancelar</Button>
           <Button variant="danger" onClick={() => deleteId && excluir(deleteId)}>Excluir</Button>

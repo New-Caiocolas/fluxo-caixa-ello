@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/context/AuthContext";
 import { useGrupos, type GrupoAPI } from "@/lib/hooks/useGrupos";
 import type { Classificacao } from "@/lib/categorias";
 import { CLASSIFICACOES } from "@/lib/grupos";
+import { buscarJson } from "@/lib/buscarJson";
 import { ChevronDown, ChevronRight, FolderTree, Plus, Pencil } from "lucide-react";
 
 /**
@@ -76,6 +77,7 @@ export function SecaoCategorias() {
 
   const [salvando, setSalvando] = useState(false);
   const [erroForm, setErroForm] = useState("");
+  const [erroAcao, setErroAcao] = useState<string | null>(null);
 
   function alternar(id: number) {
     setExpandidos((atual) => {
@@ -152,7 +154,8 @@ export function SecaoCategorias() {
   }
 
   async function alternarAtivoGrupo(g: GrupoAPI) {
-    const res = await fetch(`/api/grupos/${g.id}`, {
+    setErroAcao(null);
+    const r = await buscarJson(`/api/grupos/${g.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -164,9 +167,8 @@ export function SecaoCategorias() {
         ativo: !g.ativo,
       }),
     });
-    if (!res.ok) {
-      const json = await res.json();
-      alert(json.error || "Erro ao alterar");
+    if (!r.ok) {
+      setErroAcao(r.erro);
       return;
     }
     recarregar();
@@ -197,14 +199,14 @@ export function SecaoCategorias() {
   }
 
   async function alternarAtivoSub(subId: string, nome: string, ativo: boolean) {
-    const res = await fetch(`/api/subgrupos/${subId}`, {
+    setErroAcao(null);
+    const r = await buscarJson(`/api/subgrupos/${subId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nome, ativo: !ativo }),
     });
-    if (!res.ok) {
-      const json = await res.json();
-      alert(json.error || "Erro ao alterar");
+    if (!r.ok) {
+      setErroAcao(r.erro);
       return;
     }
     recarregar();
@@ -226,6 +228,11 @@ export function SecaoCategorias() {
       </div>
 
       {erro && <p className="px-6 py-4 text-sm text-red-600">{erro}</p>}
+      {erroAcao && (
+        <p role="alert" className="px-6 py-3 text-sm text-red-600 bg-red-50 border-b border-red-100">
+          {erroAcao}
+        </p>
+      )}
       {carregando && <p className="px-6 py-4 text-sm text-gray-500">Carregando…</p>}
 
       <div className="divide-y divide-gray-100">
