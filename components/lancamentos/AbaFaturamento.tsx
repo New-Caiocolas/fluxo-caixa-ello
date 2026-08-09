@@ -112,18 +112,28 @@ export function AbaFaturamento() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Uma coluna no celular: estes são valores anuais, na casa dos milhões.
+          Em duas colunas sobravam 119px por cartão, e qualquer fonte legível
+          transbordava — encolher a fonte só empurrava o problema para o próximo
+          valor maior. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-4">
         {[
           { label: "Faturado Ano", value: totalFaturado, color: "text-gray-900" },
           { label: "Recebido Ano", value: totalRecebido, color: "text-emerald-600" },
           { label: "Inadimplência", value: totalFaturado - totalRecebido, color: "text-orange-700", alert: true },
           { label: "Margem Média", value: percentMargemMedia, color: "text-violet-700", pct: true },
         ].map((item) => (
-          <div key={item.label} className={`bg-white rounded-xl border p-5 ${item.alert ? "border-orange-200 bg-orange-50" : "border-gray-200"}`}>
+          <div key={item.label} className={`bg-white rounded-xl border p-4 sm:p-5 ${item.alert ? "border-orange-200 bg-orange-50" : "border-gray-200"}`}>
             <p className={`text-xs uppercase font-medium mb-1 flex items-center gap-1 ${item.alert ? "text-orange-600" : "text-gray-500"}`}>
-              {item.alert && <AlertTriangle size={12} />}{item.label}
+              {item.alert && <AlertTriangle size={12} className="shrink-0" />}
+              <span className="min-w-0 truncate">{item.label}</span>
             </p>
-            <p className={`text-xl font-bold ${item.color}`}>{item.pct ? formatPercent(item.value) : formatCurrency(item.value)}</p>
+            {/* Piso de 1rem: com uma coluna no celular sobra espaço de sobra, e
+                o valor não deve encolher só porque a tela é estreita. O teto de
+                1.25rem preserva o tamanho original no desktop. */}
+            <p className={`text-[clamp(1rem,2.2vw,1.25rem)] font-bold tabular-nums whitespace-nowrap ${item.color}`}>
+              {item.pct ? formatPercent(item.value) : formatCurrency(item.value)}
+            </p>
           </div>
         ))}
       </div>
