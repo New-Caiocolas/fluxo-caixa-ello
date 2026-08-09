@@ -173,13 +173,15 @@ export default function ConsolidadoPage() {
       {erro && <AvisoErro mensagem={erro} onTentarNovamente={fetchConsolidado} />}
 
       {/* KPI cards anuais */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      {/* Valores anuais na casa dos milhões — uma coluna no celular, como
+          em Faturamento. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-4">
         <div className="rounded-xl border border-l-4 border-gray-200 border-l-emerald-500 bg-emerald-50 p-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs text-gray-500">Total Recebimentos</p>
             <TrendingUp size={14} className="text-emerald-500" />
           </div>
-          <p className="text-base font-bold text-emerald-700 tabular-nums">{formatCurrency(totalAnual.entradas)}</p>
+          <p className="text-[clamp(1rem,2.2vw,1.25rem)] font-bold text-emerald-700 tabular-nums whitespace-nowrap">{formatCurrency(totalAnual.entradas)}</p>
           <p className="text-xs text-gray-400 mt-1">{mesesComDados} meses c/ movimento</p>
         </div>
 
@@ -188,7 +190,7 @@ export default function ConsolidadoPage() {
             <p className="text-xs text-gray-500">Total Saídas</p>
             <TrendingDown size={14} className="text-red-400" />
           </div>
-          <p className="text-base font-bold text-red-700 tabular-nums">{formatCurrency(totalAnual.saidas)}</p>
+          <p className="text-[clamp(1rem,2.2vw,1.25rem)] font-bold text-red-700 tabular-nums whitespace-nowrap">{formatCurrency(totalAnual.saidas)}</p>
           <p className="text-xs text-gray-400 mt-1">
             {totalAnual.entradas > 0
               ? formatPercent((totalAnual.saidas / totalAnual.entradas) * 100) + " s/ recebimentos"
@@ -206,7 +208,7 @@ export default function ConsolidadoPage() {
             <p className="text-xs text-gray-500">Fluxo Operacional</p>
             <BarChart2 size={14} className={totalAnual.fluxoOp >= 0 ? "text-blue-500" : "text-red-400"} />
           </div>
-          <p className={cn("text-base font-bold tabular-nums", totalAnual.fluxoOp >= 0 ? "text-blue-700" : "text-red-600")}>
+          <p className={cn("text-[clamp(1rem,2.2vw,1.25rem)] font-bold tabular-nums whitespace-nowrap", totalAnual.fluxoOp >= 0 ? "text-blue-700" : "text-red-600")}>
             {formatCurrency(totalAnual.fluxoOp)}
           </p>
           <p className="text-xs text-gray-400 mt-1">Acumulado do ano</p>
@@ -222,7 +224,7 @@ export default function ConsolidadoPage() {
             <p className="text-xs text-gray-500">Fluxo Livre Acumulado</p>
             <Zap size={14} className={totalAnual.fluxoLivre >= 0 ? "text-violet-500" : "text-red-400"} />
           </div>
-          <p className={cn("text-base font-bold tabular-nums", totalAnual.fluxoLivre >= 0 ? "text-violet-700" : "text-red-600")}>
+          <p className={cn("text-[clamp(1rem,2.2vw,1.25rem)] font-bold tabular-nums whitespace-nowrap", totalAnual.fluxoLivre >= 0 ? "text-violet-700" : "text-red-600")}>
             {formatCurrency(totalAnual.fluxoLivre)}
           </p>
           <p className="text-xs text-gray-400 mt-1">
@@ -244,7 +246,9 @@ export default function ConsolidadoPage() {
             {mesesMeta}/12 meses atingidos
           </span>
         </div>
-        <div className="grid grid-cols-6 lg:grid-cols-12 gap-2">
+        {/* 3 colunas no celular: com 6, sobravam 26px por célula e "100.0%"
+            precisa de 46px. */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-12 gap-2">
           {MESES.map((mes, i) => {
             const m = data[i];
             const pct = m?.percentFluxoLivre || 0;

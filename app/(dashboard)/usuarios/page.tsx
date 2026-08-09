@@ -146,7 +146,9 @@ export default function UsuariosPage() {
       {erroCarga && <AvisoErro mensagem={erroCarga} onTentarNovamente={fetchUsuarios} />}
 
       {/* Cartões de resumo */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* 2 colunas no celular: com 3, sobravam 69px por cartão e
+          "Administrador" — palavra única, que não quebra — precisa de 78px. */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {PERFIS.map((p) => {
           const count = usuarios.filter((u) => u.role === p.value).length;
           return (
