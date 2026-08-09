@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { useFilialAtiva } from "@/lib/hooks/useFilial";
 import { formatCurrency, formatPercent, META_PADRAO } from "@/lib/utils";
 import { useGrupos } from "@/lib/hooks/useGrupos";
+import { buscarJson } from "@/lib/buscarJson";
+import { AvisoErro } from "@/components/ui/AvisoErro";
 import { Meta } from "@/types";
 import {
   ChevronDown,
@@ -37,6 +39,7 @@ export default function ConsolidadoPage() {
   const [ano, setAno] = useState(new Date().getFullYear());
   const [data, setData] = useState<AnualData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
   const [metas, setMetas] = useState<Meta[]>([]);
 
   // Estado do resumo mobile — ver comentário no bloco lg:hidden abaixo.
@@ -59,13 +62,13 @@ export default function ConsolidadoPage() {
 
   const fetchConsolidado = useCallback(async () => {
     setLoading(true);
+    setErro(null);
     try {
       const params = new URLSearchParams({ ano: String(ano) });
       if (filialAtiva) params.set("filialId", filialAtiva);
-      const res = await fetch(`/api/consolidado?${params}`);
-      if (res.ok) {
-        setData(await res.json());
-      }
+      const r = await buscarJson<AnualData[]>(`/api/consolidado?${params}`);
+      if (r.ok) setData(r.dados);
+      else setErro(r.erro);
     } finally {
       setLoading(false);
     }
@@ -165,8 +168,10 @@ export default function ConsolidadoPage() {
         </Button>
       </div>
 
+      {erro && <AvisoErro mensagem={erro} onTentarNovamente={fetchConsolidado} />}
+
       {/* KPI cards anuais */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="rounded-xl border border-l-4 border-gray-200 border-l-emerald-500 bg-emerald-50 p-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs text-gray-500">Total Recebimentos</p>

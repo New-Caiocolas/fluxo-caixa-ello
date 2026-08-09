@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { useFilialAtiva } from "@/lib/hooks/useFilial";
 import { formatCurrency, formatPercent, mesNome } from "@/lib/utils";
 import { useGrupos } from "@/lib/hooks/useGrupos";
+import { buscarJson } from "@/lib/buscarJson";
+import { AvisoErro } from "@/components/ui/AvisoErro";
 import {
   ChevronDown,
   ChevronRight,
@@ -45,6 +47,7 @@ export default function MensalPage() {
   );
   const [data, setData] = useState<MensalResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
 
   // Estado próprio do resumo mobile: no celular tudo começa recolhido, enquanto
@@ -58,13 +61,12 @@ export default function MensalPage() {
 
   const fetchMensal = useCallback(async () => {
     setLoading(true);
+    setErro(null);
     try {
       const params = new URLSearchParams({ filialId: filialAtiva, competencia });
-      const res = await fetch(`/api/mensal?${params}`);
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
-      }
+      const r = await buscarJson<MensalResponse>(`/api/mensal?${params}`);
+      if (r.ok) setData(r.dados);
+      else setErro(r.erro);
     } finally {
       setLoading(false);
     }
@@ -195,6 +197,8 @@ export default function MensalPage() {
           </Button>
         </div>
       </div>
+
+      {erro && <AvisoErro mensagem={erro} onTentarNovamente={fetchMensal} />}
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

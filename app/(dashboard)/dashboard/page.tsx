@@ -16,6 +16,8 @@ import {
   BarChart2, Zap, TrendingDown, ChevronRight, ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { buscarJson } from "@/lib/buscarJson";
+import { AvisoErro } from "@/components/ui/AvisoErro";
 
 const CORES_PIE = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899"];
 const CORES_GRUPO = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#8b5cf6", "#ec4899"];
@@ -135,6 +137,8 @@ export default function DashboardPage() {
   const [ano, setAno] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
   const [loadingDFC, setLoadingDFC] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [erroDfc, setErroDfc] = useState<string | null>(null);
   const [aba, setAba] = useState<"visao-geral" | "dfc">("visao-geral");
 
   // Resumo mobile do DFC — indexado pela posição em DFC_LINHAS, já que as
@@ -144,12 +148,13 @@ export default function DashboardPage() {
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
+    setErro(null);
     try {
       const params = new URLSearchParams({ ano: String(ano) });
       if (filialAtiva) params.set("filialId", filialAtiva);
-      const res = await fetch(`/api/dashboard?${params}`);
-      const json = await res.json();
-      setData(json);
+      const r = await buscarJson<DashboardData>(`/api/dashboard?${params}`);
+      if (r.ok) setData(r.dados);
+      else setErro(r.erro);
     } finally {
       setLoading(false);
     }
@@ -163,12 +168,13 @@ export default function DashboardPage() {
 
   const fetchDFC = useCallback(async () => {
     setLoadingDFC(true);
+    setErroDfc(null);
     try {
       const params = new URLSearchParams({ ano: String(ano) });
       if (filialAtiva) params.set("filialId", filialAtiva);
-      const res = await fetch(`/api/dfc?${params}`);
-      const json = await res.json();
-      setDfcData(json.dfcMensal || []);
+      const r = await buscarJson<{ dfcMensal?: DFCMes[] }>(`/api/dfc?${params}`);
+      if (r.ok) setDfcData(r.dados.dfcMensal ?? []);
+      else setErroDfc(r.erro);
     } finally {
       setLoadingDFC(false);
     }
@@ -263,6 +269,10 @@ export default function DashboardPage() {
       <div className="p-4 sm:p-6 space-y-6">
 
         {/* ─── ABA VISÃO GERAL ─── */}
+        {aba === "visao-geral" && erro && (
+          <AvisoErro mensagem={erro} onTentarNovamente={fetchDashboard} />
+        )}
+
         {aba === "visao-geral" && (
           <>
             {/* Alertas */}
@@ -298,7 +308,7 @@ export default function DashboardPage() {
             </div>
 
             {/* KPIs */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
               <KPICard
                 title="Recebimento Total"
                 value={data?.kpis.totalRecebimento || 0}
@@ -482,6 +492,10 @@ export default function DashboardPage() {
         )}
 
         {/* ─── ABA DFC ─── */}
+        {aba === "dfc" && erroDfc && (
+          <AvisoErro mensagem={erroDfc} onTentarNovamente={fetchDFC} />
+        )}
+
         {aba === "dfc" && (
           <>
             {/* Controles e KPIs anuais */}
@@ -504,7 +518,7 @@ export default function DashboardPage() {
             </div>
 
             {/* KPI cards anuais DFC */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
               {[
                 {
                   label: "Caixa Operacional",
