@@ -78,8 +78,10 @@ export default function ConsolidadoPage() {
 
   const fetchMetas = useCallback(async () => {
     if (!filialAtiva) { setMetas([]); return; }
-    const res = await fetch(`/api/metas?filialId=${filialAtiva}`);
-    if (res.ok) setMetas(await res.json());
+    // Meta é acessório: sem ela o cálculo usa META_PADRAO, então uma falha
+    // aqui não merece bloquear a tela com aviso.
+    const r = await buscarJson<Meta[]>(`/api/metas?filialId=${filialAtiva}`);
+    if (r.ok) setMetas(r.dados);
   }, [filialAtiva]);
 
   useEffect(() => { fetchMetas(); }, [fetchMetas]);

@@ -6,6 +6,8 @@ import { Modal } from "@/components/ui/Modal";
 import { useFilialAtiva, useFiliais } from "@/lib/hooks/useFilial";
 import { useAuth } from "@/lib/context/AuthContext";
 import { formatCurrency, formatPercent } from "@/lib/utils";
+import { buscarJson } from "@/lib/buscarJson";
+import { AvisoErro } from "@/components/ui/AvisoErro";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
@@ -35,6 +37,7 @@ export function AbaFaturamento() {
   const [comparativo, setComparativo] = useState<ComparativoItem[]>([]);
   const [faturamentos, setFaturamentos] = useState<FaturamentoItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [erroCarga, setErroCarga] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<FaturamentoItem | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -46,8 +49,11 @@ export function AbaFaturamento() {
     try {
       const params = new URLSearchParams({ ano: String(ano) });
       if (filialAtiva) params.set("filialId", filialAtiva);
-      const res = await fetch(`/api/faturamento?${params}`);
-      if (res.ok) { const json = await res.json(); setComparativo(json.comparativo); setFaturamentos(json.faturamentos); }
+      const r = await buscarJson<{ comparativo: ComparativoItem[]; faturamentos: FaturamentoItem[] }>(
+        `/api/faturamento?${params}`
+      );
+      if (r.ok) { setComparativo(r.dados.comparativo); setFaturamentos(r.dados.faturamentos); }
+      else setErroCarga(r.erro);
     } finally { setLoading(false); }
   }, [filialAtiva, ano]);
 
@@ -90,6 +96,7 @@ export function AbaFaturamento() {
 
   return (
     <>
+      {erroCarga && <AvisoErro mensagem={erroCarga} onTentarNovamente={fetchFaturamento} />}
       <div className="flex items-center gap-4">
         <select value={ano} onChange={(e) => setAno(Number(e.target.value))}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"

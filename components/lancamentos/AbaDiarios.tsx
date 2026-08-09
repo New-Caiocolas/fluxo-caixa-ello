@@ -8,6 +8,8 @@ import { FormLancamento } from "@/components/lancamentos/FormLancamento";
 import { useFilialAtiva } from "@/lib/hooks/useFilial";
 import { useAuth } from "@/lib/context/AuthContext";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { buscarJson } from "@/lib/buscarJson";
+import { AvisoErro } from "@/components/ui/AvisoErro";
 import { Lancamento, LancamentoForm } from "@/types";
 import { Plus, Edit, Trash2, Search, Filter } from "lucide-react";
 import { format } from "date-fns";
@@ -22,6 +24,7 @@ export function AbaDiarios() {
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [erroCarga, setErroCarga] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<Lancamento | undefined>();
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -35,16 +38,20 @@ export function AbaDiarios() {
 
   const fetchLancamentos = useCallback(async () => {
     setLoading(true);
+    setErroCarga(null);
     try {
       const params = new URLSearchParams({ page: String(page), limit: "50" });
       if (filialAtiva) params.set("filialId", filialAtiva);
       if (filtros.data) params.set("data", filtros.data);
       else if (filtros.competencia) params.set("competencia", filtros.competencia);
 
-      const res = await fetch(`/api/lancamentos?${params}`);
-      const json = await res.json();
-      setLancamentos(json.data || []);
-      setTotal(json.total || 0);
+      const r = await buscarJson<{ data?: Lancamento[]; total?: number }>(`/api/lancamentos?${params}`);
+      if (r.ok) {
+        setLancamentos(r.dados.data ?? []);
+        setTotal(r.dados.total ?? 0);
+      } else {
+        setErroCarga(r.erro);
+      }
     } finally {
       setLoading(false);
     }
@@ -92,6 +99,7 @@ export function AbaDiarios() {
 
   return (
     <>
+      {erroCarga && <AvisoErro mensagem={erroCarga} onTentarNovamente={fetchLancamentos} />}
       {/* Filtros e ação */}
       <div className="flex flex-wrap items-center gap-4 bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex items-center gap-2">

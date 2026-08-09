@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { formatCurrency, mesNome, cn } from "@/lib/utils";
+import { buscarJson } from "@/lib/buscarJson";
+import { AvisoErro } from "@/components/ui/AvisoErro";
 import { useAuth } from "@/lib/context/AuthContext";
 import { Plus, Users, AlertTriangle, Pencil, X, Save, UserPen } from "lucide-react";
 import { format } from "date-fns";
@@ -83,6 +85,7 @@ export function AbaFolha() {
   );
   const [data, setData] = useState<FolhaData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [erroCarga, setErroCarga] = useState<string | null>(null);
   const [filiais, setFiliais] = useState<Array<{ id: string; nome: string }>>([]);
   const [modalFuncOpen, setModalFuncOpen] = useState(false);
   const [funcEditandoId, setFuncEditandoId] = useState<string | null>(null);
@@ -101,15 +104,21 @@ export function AbaFolha() {
   const [detalheAberto, setDetalheAberto] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    fetch("/api/filiais").then((r) => r.json()).then(setFiliais);
+    // Falha aqui só esvazia o seletor de filial do cadastro; o aviso da tela
+    // já cobre o carregamento principal.
+    buscarJson<Array<{ id: string; nome: string }>>("/api/filiais").then((r) => {
+      if (r.ok) setFiliais(r.dados);
+    });
   }, []);
 
   const fetchFolha = useCallback(async () => {
     setLoading(true);
+    setErroCarga(null);
     try {
       const params = new URLSearchParams({ competencia });
-      const res = await fetch(`/api/folha?${params}`);
-      if (res.ok) setData(await res.json());
+      const r = await buscarJson<FolhaData>(`/api/folha?${params}`);
+      if (r.ok) setData(r.dados);
+      else setErroCarga(r.erro);
     } finally {
       setLoading(false);
     }
@@ -263,6 +272,7 @@ export function AbaFolha() {
 
   return (
     <>
+      {erroCarga && <AvisoErro mensagem={erroCarga} onTentarNovamente={fetchFolha} />}
       <div className="-mt-2 mb-2">
         <p className="text-sm text-gray-500">
           Folha de Pagamento — {mesNome(mes)} {ano}. Cálculo de salários, encargos e totais por filial.

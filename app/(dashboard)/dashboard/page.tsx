@@ -162,8 +162,9 @@ export default function DashboardPage() {
 
   const fetchMetas = useCallback(async () => {
     if (!filialAtiva) { setMetas([]); return; }
-    const res = await fetch(`/api/metas?filialId=${filialAtiva}`);
-    if (res.ok) setMetas(await res.json());
+    // Meta é acessório: sem ela o cálculo usa META_PADRAO.
+    const r = await buscarJson<Meta[]>(`/api/metas?filialId=${filialAtiva}`);
+    if (r.ok) setMetas(r.dados);
   }, [filialAtiva]);
 
   const fetchDFC = useCallback(async () => {

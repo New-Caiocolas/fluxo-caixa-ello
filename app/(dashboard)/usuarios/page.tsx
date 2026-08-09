@@ -8,6 +8,8 @@ import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { useAuth } from "@/lib/context/AuthContext";
 import { formatDate } from "@/lib/utils";
+import { buscarJson } from "@/lib/buscarJson";
+import { AvisoErro } from "@/components/ui/AvisoErro";
 import { Plus, Edit, Trash2, ShieldCheck, User, Eye, EyeOff } from "lucide-react";
 
 interface Usuario {
@@ -51,6 +53,7 @@ export default function UsuariosPage() {
   const [form, setForm] = useState<Form>(formVazio);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
+  const [erroCarga, setErroCarga] = useState<string | null>(null);
   const [mostrarSenha, setMostrarSenha] = useState(false);
 
   useEffect(() => {
@@ -59,9 +62,11 @@ export default function UsuariosPage() {
 
   const fetchUsuarios = useCallback(async () => {
     setLoading(true);
+    setErroCarga(null);
     try {
-      const res = await fetch("/api/usuarios");
-      if (res.ok) setUsuarios(await res.json());
+      const r = await buscarJson<Usuario[]>("/api/usuarios");
+      if (r.ok) setUsuarios(r.dados);
+      else setErroCarga(r.erro);
     } finally {
       setLoading(false);
     }
@@ -139,6 +144,8 @@ export default function UsuariosPage() {
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <Header title="Gerenciamento de Usuários" subtitle="Cadastre e gerencie perfis de acesso ao sistema" />
+
+      {erroCarga && <AvisoErro mensagem={erroCarga} onTentarNovamente={fetchUsuarios} />}
 
       {/* Cartões de resumo */}
       <div className="grid grid-cols-3 gap-4">

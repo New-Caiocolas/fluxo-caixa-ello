@@ -7,6 +7,8 @@ import { Modal } from "@/components/ui/Modal";
 import { useAuth } from "@/lib/context/AuthContext";
 import { formatDate, META_PADRAO } from "@/lib/utils";
 import { Meta } from "@/types";
+import { buscarJson } from "@/lib/buscarJson";
+import { AvisoErro } from "@/components/ui/AvisoErro";
 import { SecaoCategorias } from "@/components/configuracoes/SecaoCategorias";
 import { Building2, Plus, Users, ShieldCheck, Trash2, TriangleAlert, Target } from "lucide-react";
 
@@ -24,6 +26,7 @@ export default function ConfiguracoesPage() {
   const [modalFilialOpen, setModalFilialOpen] = useState(false);
   const [filialForm, setFilialForm] = useState({ nome: "", codigo: "" });
   const [salvando, setSalvando] = useState(false);
+  const [erroCarga, setErroCarga] = useState<string | null>(null);
 
   // Metas por filial
   const [metas, setMetas] = useState<Meta[]>([]);
@@ -38,12 +41,16 @@ export default function ConfiguracoesPage() {
   const [resultadoLimpeza, setResultadoLimpeza] = useState<Record<string, number> | null>(null);
 
   useEffect(() => {
-    fetch("/api/filiais").then((r) => r.json()).then(setFiliais);
+    buscarJson<Filial[]>("/api/filiais").then((r) => {
+      if (r.ok) setFiliais(r.dados);
+      else setErroCarga(r.erro);
+    });
   }, []);
 
   const fetchMetas = useCallback(async () => {
-    const res = await fetch("/api/metas");
-    if (res.ok) setMetas(await res.json());
+    const r = await buscarJson<Meta[]>("/api/metas");
+    if (r.ok) { setMetas(r.dados); setErroCarga(null); }
+    else setErroCarga(r.erro);
   }, []);
 
   useEffect(() => { fetchMetas(); }, [fetchMetas]);
@@ -128,7 +135,7 @@ export default function ConfiguracoesPage() {
       if (res.ok) {
         setModalFilialOpen(false);
         setFilialForm({ nome: "", codigo: "" });
-        fetch("/api/filiais").then((r) => r.json()).then(setFiliais);
+        buscarJson<Filial[]>("/api/filiais").then((r) => { if (r.ok) setFiliais(r.dados); });
       }
     } finally { setSalvando(false); }
   }
@@ -136,6 +143,8 @@ export default function ConfiguracoesPage() {
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <Header title="Configurações" subtitle="Filiais, usuários e preferências do sistema" />
+
+      {erroCarga && <AvisoErro mensagem={erroCarga} onTentarNovamente={fetchMetas} />}
 
       {/* Filiais */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
