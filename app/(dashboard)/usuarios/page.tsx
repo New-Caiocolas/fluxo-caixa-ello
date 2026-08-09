@@ -294,8 +294,8 @@ export default function UsuariosPage() {
         <div className="space-y-4">
           {/* Nome */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
-            <input
+            <label htmlFor="usr-nome" className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
+            <input id="usr-nome"
               type="text"
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
@@ -306,8 +306,8 @@ export default function UsuariosPage() {
 
           {/* E-mail */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">E-mail *</label>
-            <input
+            <label htmlFor="usr-e-mail" className="block text-sm font-medium text-gray-700 mb-1">E-mail *</label>
+            <input id="usr-e-mail"
               type="email"
               value={form.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
@@ -318,11 +318,11 @@ export default function UsuariosPage() {
 
           {/* Senha */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="usr-senha" className="block text-sm font-medium text-gray-700 mb-1">
               Senha {editando ? "(deixe em branco para manter)" : "*"}
             </label>
             <div className="relative">
-              <input
+              <input id="usr-senha"
                 type={mostrarSenha ? "text" : "password"}
                 value={form.password}
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
@@ -339,9 +339,11 @@ export default function UsuariosPage() {
             </div>
           </div>
 
-          {/* Perfil */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Perfil de acesso *</label>
+          {/* Perfil — fieldset/legend em vez de label: o rótulo descreve o grupo
+              de opções, e não um campo único ao qual um htmlFor pudesse apontar.
+              Cada opção já é um label envolvendo seu próprio radio. */}
+          <fieldset>
+            <legend className="block text-sm font-medium text-gray-700 mb-2">Perfil de acesso *</legend>
             <div className="space-y-2">
               {PERFIS.map((p) => (
                 <label
@@ -367,7 +369,7 @@ export default function UsuariosPage() {
                 </label>
               ))}
             </div>
-          </div>
+          </fieldset>
 
           {erro && (
             <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{erro}</p>

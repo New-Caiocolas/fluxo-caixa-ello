@@ -281,28 +281,28 @@ export function AbaFaturamento() {
         title={editItem ? "Editar NF" : "Lançar Nota Fiscal"} size="md">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Filial *</label>
-            <select value={form.filialId} onChange={(e) => setForm((f) => ({ ...f, filialId: e.target.value }))}
+            <label htmlFor="fat-filial" className="block text-sm font-medium text-gray-700 mb-1">Filial *</label>
+            <select id="fat-filial" value={form.filialId} onChange={(e) => setForm((f) => ({ ...f, filialId: e.target.value }))}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
               <option value="">Selecione...</option>
               {filiais.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Competência *</label>
-            <input type="month" value={form.competencia} onChange={(e) => setForm((f) => ({ ...f, competencia: e.target.value }))}
+            <label htmlFor="fat-competencia" className="block text-sm font-medium text-gray-700 mb-1">Competência *</label>
+            <input id="fat-competencia" type="month" value={form.competencia} onChange={(e) => setForm((f) => ({ ...f, competencia: e.target.value }))}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               suppressHydrationWarning />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Valor da NF *</label>
-            <input type="number" step="0.01" min="0" value={form.valorNF || ""}
+            <label htmlFor="fat-valor-da" className="block text-sm font-medium text-gray-700 mb-1">Valor da NF *</label>
+            <input id="fat-valor-da" type="number" step="0.01" min="0" value={form.valorNF || ""}
               onChange={(e) => setForm((f) => ({ ...f, valorNF: Number(e.target.value) }))}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-            <input type="text" value={form.descricao} onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
+            <label htmlFor="fat-descricao" className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+            <input id="fat-descricao" type="text" value={form.descricao} onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
           <div className="flex justify-end gap-3">

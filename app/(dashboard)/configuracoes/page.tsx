@@ -331,10 +331,10 @@ export default function ConfiguracoesPage() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="cfg-digite-confirmar" className="block text-sm font-medium text-gray-700 mb-1">
                 Digite <span className="font-mono bg-gray-100 px-1 rounded text-red-600">CONFIRMAR</span> para prosseguir
               </label>
-              <input
+              <input id="cfg-digite-confirmar"
                 type="text"
                 value={confirmacaoTexto}
                 onChange={(e) => setConfirmacaoTexto(e.target.value)}
@@ -361,15 +361,15 @@ export default function ConfiguracoesPage() {
       <Modal open={modalFilialOpen} onClose={() => setModalFilialOpen(false)} title="Nova Filial" size="sm">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
-            <input type="text" value={filialForm.nome}
+            <label htmlFor="cfg-nome" className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
+            <input id="cfg-nome" type="text" value={filialForm.nome}
               onChange={(e) => setFilialForm((f) => ({ ...f, nome: e.target.value }))}
               placeholder="Ex: ELLO Matriz"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Código *</label>
-            <input type="text" value={filialForm.codigo}
+            <label htmlFor="cfg-codigo" className="block text-sm font-medium text-gray-700 mb-1">Código *</label>
+            <input id="cfg-codigo" type="text" value={filialForm.codigo}
               onChange={(e) => setFilialForm((f) => ({ ...f, codigo: e.target.value.toUpperCase() }))}
               placeholder="Ex: ELLO-01"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />

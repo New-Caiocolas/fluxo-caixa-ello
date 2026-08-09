@@ -87,8 +87,8 @@ export function FormLancamento({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Filial *</label>
-          <select
+          <label htmlFor="lanc-filial" className="block text-sm font-medium text-gray-700 mb-1">Filial *</label>
+          <select id="lanc-filial"
             value={form.filialId}
             onChange={(e) => setForm((f) => ({ ...f, filialId: e.target.value }))}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -101,8 +101,8 @@ export function FormLancamento({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
-          <input
+          <label htmlFor="lanc-data" className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
+          <input id="lanc-data"
             type="date"
             value={form.data}
             onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))}
@@ -114,8 +114,8 @@ export function FormLancamento({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Grupo *</label>
-          <select
+          <label htmlFor="lanc-grupo" className="block text-sm font-medium text-gray-700 mb-1">Grupo *</label>
+          <select id="lanc-grupo"
             value={form.grupoId}
             onChange={(e) => setForm((f) => ({ ...f, grupoId: Number(e.target.value) }))}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -129,8 +129,8 @@ export function FormLancamento({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Subcategoria</label>
-          <select
+          <label htmlFor="lanc-subcategoria" className="block text-sm font-medium text-gray-700 mb-1">Subcategoria</label>
+          <select id="lanc-subcategoria"
             value={form.subgrupoId}
             onChange={(e) => setForm((f) => ({ ...f, subgrupoId: e.target.value }))}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -144,8 +144,8 @@ export function FormLancamento({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Descrição *</label>
-        <input
+        <label htmlFor="lanc-descricao" className="block text-sm font-medium text-gray-700 mb-1">Descrição *</label>
+        <input id="lanc-descricao"
           type="text"
           value={form.descricao}
           onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
@@ -156,8 +156,8 @@ export function FormLancamento({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Valor *</label>
-          <input
+          <label htmlFor="lanc-valor" className="block text-sm font-medium text-gray-700 mb-1">Valor *</label>
+          <input id="lanc-valor"
             type="number"
             step="0.01"
             min="0"
@@ -169,11 +169,11 @@ export function FormLancamento({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+          <label htmlFor="lanc-tipo" className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
           {grupoSelecionado?.permiteAmbosTipos ? (
             <div className="flex gap-3 mt-1">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input
+                <input id="lanc-tipo"
                   type="radio"
                   value="ENTRADA"
                   checked={form.tipo === "ENTRADA"}
@@ -210,8 +210,8 @@ export function FormLancamento({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Observação</label>
-        <textarea
+        <label htmlFor="lanc-observacao" className="block text-sm font-medium text-gray-700 mb-1">Observação</label>
+        <textarea id="lanc-observacao"
           value={form.observacao}
           onChange={(e) => setForm((f) => ({ ...f, observacao: e.target.value }))}
           rows={2}

@@ -98,10 +98,10 @@ export default function TrocarSenhaPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nova senha</label>
+              <label htmlFor="senha-nova-senha" className="block text-sm font-medium text-gray-700 mb-1">Nova senha</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
+                <input id="senha-nova-senha"
                   type={showNova ? "text" : "password"}
                   value={novaSenha}
                   onChange={(e) => setNovaSenha(e.target.value)}
@@ -143,10 +143,10 @@ export default function TrocarSenhaPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar senha</label>
+              <label htmlFor="senha-confirmar-senha" className="block text-sm font-medium text-gray-700 mb-1">Confirmar senha</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
+                <input id="senha-confirmar-senha"
                   type={showConfirmar ? "text" : "password"}
                   value={confirmarSenha}
                   onChange={(e) => setConfirmarSenha(e.target.value)}

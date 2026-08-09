@@ -555,8 +555,8 @@ export function AbaFolha() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Filial *</label>
-              <select
+              <label htmlFor="func-filial" className="block text-sm font-medium text-gray-700 mb-1">Filial *</label>
+              <select id="func-filial"
                 value={funcForm.filialId}
                 onChange={(e) => setFuncForm((f) => ({ ...f, filialId: e.target.value }))}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -566,8 +566,8 @@ export function AbaFolha() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data Admissão *</label>
-              <input
+              <label htmlFor="func-data-admissao" className="block text-sm font-medium text-gray-700 mb-1">Data Admissão *</label>
+              <input id="func-data-admissao"
                 type="date"
                 value={funcForm.admissao}
                 onChange={(e) => setFuncForm((f) => ({ ...f, admissao: e.target.value }))}
@@ -576,8 +576,8 @@ export function AbaFolha() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
-            <input
+            <label htmlFor="func-nome" className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
+            <input id="func-nome"
               type="text"
               value={funcForm.nome}
               onChange={(e) => setFuncForm((f) => ({ ...f, nome: e.target.value }))}
@@ -585,8 +585,8 @@ export function AbaFolha() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Cargo *</label>
-            <input
+            <label htmlFor="func-cargo" className="block text-sm font-medium text-gray-700 mb-1">Cargo *</label>
+            <input id="func-cargo"
               type="text"
               value={funcForm.cargo}
               onChange={(e) => setFuncForm((f) => ({ ...f, cargo: e.target.value }))}
@@ -595,8 +595,8 @@ export function AbaFolha() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Salário Base *</label>
-              <input
+              <label htmlFor="func-salario-base" className="block text-sm font-medium text-gray-700 mb-1">Salário Base *</label>
+              <input id="func-salario-base"
                 type="number"
                 step="0.01"
                 value={funcForm.salarioBase || ""}
@@ -605,8 +605,8 @@ export function AbaFolha() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Triênio (% decimal, ex: 0.03)</label>
-              <input
+              <label htmlFor="func-trienio-decimal" className="block text-sm font-medium text-gray-700 mb-1">Triênio (% decimal, ex: 0.03)</label>
+              <input id="func-trienio-decimal"
                 type="number"
                 step="0.01"
                 min="0"
