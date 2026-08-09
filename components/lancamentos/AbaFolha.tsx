@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
-import { formatCurrency, mesNome } from "@/lib/utils";
+import { formatCurrency, mesNome, cn } from "@/lib/utils";
 import { useAuth } from "@/lib/context/AuthContext";
 import { Plus, Users, AlertTriangle, Pencil, X, Save, UserPen } from "lucide-react";
 import { format } from "date-fns";
@@ -96,6 +96,9 @@ export function AbaFolha() {
   const [modoEdicao, setModoEdicao] = useState(false);
   const [comissoesEdit, setComissoesEdit] = useState<Record<string, number>>({});
   const [salvandoFolha, setSalvandoFolha] = useState(false);
+
+  // Memória de cálculo aberta por funcionário no resumo mobile.
+  const [detalheAberto, setDetalheAberto] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetch("/api/filiais").then((r) => r.json()).then(setFiliais);
@@ -357,7 +360,115 @@ export function AbaFolha() {
                 <span>Total: <span className="font-bold text-red-300">{formatCurrency(filial.totalPagar)}</span></span>
               </div>
             </div>
-            <div className="overflow-x-auto">
+            {/* Cartões — abaixo de lg.
+                A folha é o caso híbrido: parece lista, mas as 12 colunas são a
+                decomposição de um cálculo. Por isso o cartão mostra só o que se
+                consulta de fato (nome, cargo, total a pagar) e guarda a memória
+                de cálculo atrás do toque. No modo de edição a comissão sobe para
+                o cartão, já que é o único campo editável. */}
+            <div className="lg:hidden divide-y divide-gray-100">
+              {filial.itens.map((item, i) => {
+                const chave = `${filial.filialId}-${item.funcionarioId}`;
+                const aberto = detalheAberto.has(chave);
+                const linhas: Array<[string, number, string?]> = [
+                  ["Salário base", item.salarioBase],
+                  ["Comissão", item.comissao],
+                  ["Triênio", item.trienio],
+                  ["DSR", item.dsr],
+                  ["Total bruto", item.totalBruto, "font-semibold text-gray-900"],
+                  ["INSS patronal", item.inssPatronal, "text-orange-600"],
+                  ["Entidades", item.entidades, "text-orange-600"],
+                  ["FGTS", item.fgts, "text-orange-600"],
+                  ["Total encargos", item.totalEncargos, "font-semibold text-orange-700"],
+                ];
+
+                return (
+                  <div key={i} className={cn("p-4", modoEdicao && "bg-amber-50/40")}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 break-words">
+                          {item.funcionario.nome}
+                        </p>
+                        <p className="text-xs text-gray-500">{item.funcionario.cargo}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[11px] text-gray-400">Total a pagar</p>
+                        <p className="text-sm font-bold text-red-700 tabular-nums">
+                          {formatCurrency(item.totalPagar)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {modoEdicao && (
+                      <div className="mt-3 flex items-center gap-2">
+                        <label
+                          htmlFor={`comissao-${chave}`}
+                          className="text-xs text-amber-800 shrink-0"
+                        >
+                          Comissão
+                        </label>
+                        <input
+                          id={`comissao-${chave}`}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={comissoesEdit[item.funcionarioId] ?? item.comissao}
+                          onChange={(e) =>
+                            setComissoesEdit((prev) => ({
+                              ...prev,
+                              [item.funcionarioId]: Number(e.target.value),
+                            }))
+                          }
+                          className="flex-1 min-w-0 text-right border border-amber-300 rounded px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                        />
+                      </div>
+                    )}
+
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDetalheAberto((atual) => {
+                            const novo = new Set(atual);
+                            if (novo.has(chave)) novo.delete(chave);
+                            else novo.add(chave);
+                            return novo;
+                          })
+                        }
+                        aria-expanded={aberto}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50"
+                      >
+                        {aberto ? "Ocultar cálculo" : "Ver cálculo"}
+                      </button>
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => abrirEdicaoFuncionario(item)}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-xs text-emerald-600 hover:bg-emerald-50"
+                        >
+                          Editar cadastro
+                        </button>
+                      )}
+                    </div>
+
+                    {aberto && (
+                      <div className="mt-3 bg-gray-50 rounded-lg p-3">
+                        {linhas.map(([rotulo, valor, cls]) => (
+                          <div key={rotulo} className="flex justify-between gap-3 py-0.5">
+                            <span className="text-xs text-gray-600">{rotulo}</span>
+                            <span className={cn("text-xs tabular-nums text-gray-700", cls)}>
+                              {formatCurrency(valor)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="overflow-x-auto hidden lg:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
