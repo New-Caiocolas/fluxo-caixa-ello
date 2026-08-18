@@ -9,6 +9,7 @@ Sistema de gestão de fluxo de caixa diário para o Grupo ELLO com suporte a mú
 - **Banco de dados:** PostgreSQL + Prisma ORM 7
 - **Auth:** JWT com cookies httpOnly
 - **Gráficos:** Recharts
+- **Deploy:** Docker no ZimaOS (app + Supabase self-hosted), publicado por Cloudflare Tunnel
 
 ## Funcionalidades
 
@@ -62,6 +63,21 @@ Acesse: http://localhost:3000
 | `npm run db:migrate` | Cria migration e aplica ao banco |
 | `npm run db:seed` | Popula dados iniciais |
 | `npm run db:studio` | Abre Prisma Studio (interface visual) |
+| `npm run build:docker` | Build sem aplicar migrations — usado pela imagem Docker |
+
+## Deploy
+
+O sistema roda em Docker no ZimaOS: o app e o Supabase self-hosted na mesma
+rede interna, publicados na internet por Cloudflare Tunnel — sem nenhuma porta
+aberta no roteador e sem o Postgres exposto.
+
+```bash
+cd infra && cp .env.example .env && docker compose up -d --build
+```
+
+O passo a passo completo, incluindo a migração de dados do Supabase gerenciado,
+o corte em produção, o rollback e o backup agendado, está em
+[docs/MIGRACAO-SELFHOST.md](docs/MIGRACAO-SELFHOST.md).
 
 ## Estrutura
 
@@ -81,7 +97,10 @@ Acesse: http://localhost:3000
 ├── prisma/                # Schema e seed
 ├── proxy.ts               # Proteção server-side de rotas (Next.js 16)
 ├── tests/                 # Testes unitários (Vitest)
-└── types/                 # TypeScript types
+├── types/                 # TypeScript types
+├── Dockerfile             # Imagem do app (alvos: runner e migrator)
+├── infra/                 # docker-compose do deploy no ZimaOS
+└── docs/                  # Runbooks operacionais
 ```
 
 ## Grupos de categorias

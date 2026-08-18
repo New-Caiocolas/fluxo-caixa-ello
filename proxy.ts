@@ -4,7 +4,7 @@ import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 /**
  * Rotas públicas — não exigem autenticação.
  */
-const publicPaths = ["/login", "/api/auth/login"];
+const publicPaths = ["/login", "/api/auth/login", "/api/health"];
 
 /**
  * Proxy (middleware) do Next.js 16.

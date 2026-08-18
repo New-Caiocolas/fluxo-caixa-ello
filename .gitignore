@@ -30,6 +30,13 @@ yarn-error.log*
 # vercel
 .vercel
 
+# dumps da migração para self-host — contêm dados financeiros reais e senhas
+# em hash. Nunca versionar.
+*.sql
+!prisma/migrations/**/*.sql
+*.dump
+/backups/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

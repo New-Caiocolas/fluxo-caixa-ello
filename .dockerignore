@@ -1,0 +1,22 @@
+# Nunca entram na imagem: segredos e artefatos de máquina local.
+.env
+.env.*
+!.env.example
+
+node_modules
+.next
+.git
+.gitignore
+
+# Compose e runbook do self-host — usados no host, não dentro do container.
+infra
+docs
+
+tests
+*.md
+!README.md
+
+.vscode
+.idea
+.DS_Store
+npm-debug.log*

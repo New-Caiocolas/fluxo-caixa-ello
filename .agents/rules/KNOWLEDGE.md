@@ -46,13 +46,31 @@ Centralizada em `lib/permissoes.ts`.
 
 ---
 
+## 🚢 Deploy (Supabase self-hosted no ZimaOS)
+
+A hospedagem migrou de **Vercel + Supabase gerenciado** para **ZimaOS**, com o app e o Supabase self-hosted em Docker na mesma máquina, publicados por Cloudflare Tunnel. Runbook completo em [`docs/MIGRACAO-SELFHOST.md`](../../docs/MIGRACAO-SELFHOST.md).
+
+**Por que o app saiu da Vercel junto com o banco.** Funções serverless da Vercel abrem TCP direto com o Postgres, e um banco em rede local não é roteável de fora. As saídas usuais não cobrem esse caso: Cloudflare Tunnel só faz TCP genérico via Spectrum (plano pago) — no free tier o cliente precisaria rodar `cloudflared access tcp`, o que serverless não permite; e Tailscale/WireGuard exigem daemon persistente. A alternativa era abrir a porta do Postgres na internet, recusada por expor o banco financeiro com defesa só de senha, e por colocar toda query atravessando a internet.
+
+**O app não usa nenhum serviço do Supabase além do Postgres.** Não há `@supabase/supabase-js`, Auth, Storage, Realtime ou RLS — a autenticação é própria (`lib/auth.ts`, JWT + bcrypt) e o acesso a dados é todo Prisma. O acoplamento ao Supabase se resume às connection strings.
+
+**Consequência prática: `DATABASE_URL` e `DIRECT_URL` agora são idênticas.** A distinção entre pooler de transação (6543) e sessão (5432) era um artefato do Supabase gerenciado. Conectando direto ao container `db`, não há PgBouncer no caminho — e some junto a classe de bug de "migration que trava sem erro".
+
+**Migrations não rodam no build da imagem.** `npm run build` chama `scripts/migrate-deploy.mjs`, que precisa do banco acessível — o que não vale numa camada de build Docker. Por isso existe o alvo `build:docker` (sem migration) e um serviço `migrate` efêmero no compose, que roda `prisma migrate deploy` e sai antes do app subir (`service_completed_successfully`).
+
+**`GET /api/health` é pública de propósito** — está em `publicPaths` no `proxy.ts`. O `HEALTHCHECK` do Docker consulta sem cookie, então exigir autenticação deixaria o container permanentemente `unhealthy` e o `cloudflared` nunca publicaria o app (ele espera `service_healthy`). Não "corrigir" adicionando auth. Ela consulta o banco (`SELECT 1`) em vez de só confirmar o processo vivo, porque o modo de falha real é o app subir sem o Postgres. A resposta é só `ok`/`degradado`, sem versão nem detalhe de erro, já que fica exposta pelo túnel.
+
+**Backup é responsabilidade nossa agora.** `scripts/backup.sh` no cron do ZimaOS, com retenção de 30 dias. O script grava no mesmo disco do banco — a cópia para fora do ZimaOS é obrigatória, não opcional.
+
+---
+
 ## 🗄️ Migrations (Prisma + Supabase)
 
 O banco foi **baselined** em 2026-08-07 com a migration `0_init`, gerada a partir do schema e marcada como aplicada via `prisma migrate resolve --applied` — o SQL nunca foi executado, porque as tabelas já existiam. A partir daí o fluxo é o normal: `npx prisma migrate dev --name <nome>`.
 
 > ⚠️ **Nunca rode `migrate dev` contra um banco não-baselined.** O Prisma interpreta as tabelas pré-existentes como drift e oferece resetar o banco — o que apagaria produção.
 
-**As duas URLs não são intercambiáveis:**
+**As duas URLs não são intercambiáveis _atrás de um pooler de transação_** — ou seja, no Supabase gerenciado. No self-hosted a conexão é direta e elas são iguais (ver seção de Deploy). O que segue vale para o ambiente gerenciado e para qualquer retorno a ele:
 
 | Variável | Porta | Modo | Uso |
 |---|---|---|---|

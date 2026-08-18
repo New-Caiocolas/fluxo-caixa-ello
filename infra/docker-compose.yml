@@ -1,0 +1,71 @@
+# Fluxo de Caixa — app + túnel, no ZimaOS.
+#
+# Este compose NÃO sobe o Supabase. O Supabase self-hosted é subido a partir do
+# repositório oficial (supabase/docker) e continua com ciclo de vida próprio —
+# assim ele pode ser atualizado sem tocar na aplicação. Aqui só entramos na
+# rede dele para alcançar o Postgres pelo nome de serviço `db`.
+#
+# Ver docs/MIGRACAO-SELFHOST.md para a ordem de execução.
+
+name: fluxo-caixa
+
+services:
+  # Container efêmero: aplica as migrations e sai. O app só sobe depois que
+  # este terminar com sucesso, então o schema nunca fica atrás do código.
+  migrate:
+    build:
+      context: ..
+      target: migrator
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      DIRECT_URL: ${DIRECT_URL}
+    networks: [supabase]
+    restart: "no"
+
+  app:
+    build:
+      context: ..
+      target: runner
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      DIRECT_URL: ${DIRECT_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      GMAIL_USER: ${GMAIL_USER}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
+      APP_URL: ${APP_URL}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    # Publicado só no loopback do ZimaOS: dá para testar com curl na própria
+    # máquina, mas nada na LAN nem na internet alcança a porta direto. Todo
+    # acesso externo entra pelo cloudflared. Para testar de outro micro da
+    # rede durante a validação, troque por "3000:3000" e reverta depois.
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks: [supabase]
+    restart: unless-stopped
+
+  # Faz a conexão de saída para a Cloudflare e recebe o tráfego público por
+  # ela. Nenhuma porta precisa ser aberta no roteador — é o que dispensa
+  # DDNS, port forward e expor o Postgres.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    # service_healthy, e não só "iniciado": o healthcheck do app confirma que o
+    # banco responde. Sem isso o túnel começa a servir 502 para os usuários
+    # enquanto o Next ainda está subindo.
+    depends_on:
+      app:
+        condition: service_healthy
+    networks: [supabase]
+    restart: unless-stopped
+
+networks:
+  # Rede criada pelo compose do Supabase. O nome varia conforme o project name
+  # com que ele subiu — confira com `docker network ls` e ajuste
+  # SUPABASE_NETWORK no .env se não for o padrão.
+  supabase:
+    external: true
+    name: ${SUPABASE_NETWORK:-supabase_default}
