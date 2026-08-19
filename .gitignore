@@ -34,6 +34,7 @@ yarn-error.log*
 # em hash. Nunca versionar.
 *.sql
 !prisma/migrations/**/*.sql
+!scripts/*.sql
 *.dump
 /backups/
 

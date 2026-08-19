@@ -60,6 +60,10 @@ A hospedagem migrou de **Vercel + Supabase gerenciado** para **ZimaOS**, com o a
 
 **`GET /api/health` é pública de propósito** — está em `publicPaths` no `proxy.ts`. O `HEALTHCHECK` do Docker consulta sem cookie, então exigir autenticação deixaria o container permanentemente `unhealthy` e o `cloudflared` nunca publicaria o app (ele espera `service_healthy`). Não "corrigir" adicionando auth. Ela consulta o banco (`SELECT 1`) em vez de só confirmar o processo vivo, porque o modo de falha real é o app subir sem o Postgres. A resposta é só `ok`/`degradado`, sem versão nem detalhe de erro, já que fica exposta pelo túnel.
 
+**A API REST do Supabase (PostgREST) precisa ficar fechada — e não fica por padrão.** O Supabase concede *default privileges* aos roles `anon` e `authenticated` sobre tabelas do schema `public`. O Prisma conecta como `postgres` e cria as tabelas exatamente ali, sem RLS. Resultado: as tabelas nascem legíveis pela API pública, cuja chave anon é publicável por design — a base financeira inteira ficaria exposta a quem tivesse a URL. Como este projeto não usa PostgREST para nada, a API é superfície de ataque sem contrapartida. `scripts/blindar-postgrest.sql` revoga os privilégios, ajusta os default privileges (senão a próxima migration reabre) e liga RLS como segunda camada. Não afeta a aplicação: o dono da tabela é isento de RLS, e o Prisma conecta como `postgres`, que é o dono. **Rodar após cada migration que crie tabelas.**
+
+> Verificado em 2026-08-19 no ambiente self-hosted: `/rest/v1/` responde publicamente e aceita a chave anon; o Studio está atrás apenas do basic auth do Kong (`WWW-Authenticate: Basic`), não do Cloudflare Access. O mesmo risco vale para o Supabase gerenciado, que tem PostgREST público e as mesmas tabelas criadas pelo Prisma.
+
 **Backup é responsabilidade nossa agora.** `scripts/backup.sh` no cron do ZimaOS, com retenção de 30 dias. O script grava no mesmo disco do banco — a cópia para fora do ZimaOS é obrigatória, não opcional.
 
 ---
