@@ -85,7 +85,12 @@ echo "4. Conexão com o banco"
 if [ -n "$rede" ] && [ -n "${DATABASE_URL:-}" ]; then
   # Rodado de dentro do supabase-db: ele já tem psql e já está na rede certa,
   # então valida host, senha e permissão de uma vez — sem baixar imagem nova.
-  if docker exec supabase-db psql "$DATABASE_URL" -c 'select 1' >/dev/null 2>&1; then
+  #
+  # A query string é removida porque `?schema=public` é parâmetro do Prisma, não
+  # do libpq: o psql recusa com "invalid URI query parameter" e a conexão boa
+  # seria reportada como falha de senha.
+  url_psql="${DATABASE_URL%%\?*}"
+  if docker exec supabase-db psql "$url_psql" -c 'select 1' >/dev/null 2>&1; then
     ok "conectou e autenticou"
   else
     erro "não conseguiu conectar com a DATABASE_URL"
