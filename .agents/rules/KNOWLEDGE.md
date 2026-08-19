@@ -48,7 +48,9 @@ Centralizada em `lib/permissoes.ts`.
 
 ## 🚢 Deploy (Supabase self-hosted no ZimaOS)
 
-A hospedagem migrou de **Vercel + Supabase gerenciado** para **ZimaOS**, com o app e o Supabase self-hosted em Docker na mesma máquina, publicados por Cloudflare Tunnel. Runbook completo em [`docs/MIGRACAO-SELFHOST.md`](../../docs/MIGRACAO-SELFHOST.md).
+> ⚠️ **Migração iniciada, NÃO concluída.** A produção continua em **Vercel + Supabase gerenciado**. No ZimaOS existem o schema criado e a API blindada, mas **nenhum dado foi migrado** e o app nunca subiu lá. O runbook está pronto do passo 1 ao 5.1; o corte seria o passo 6. Ver [`docs/ESTADO-ATUAL.md`](../../docs/ESTADO-ATUAL.md).
+
+O plano é app e Supabase self-hosted em Docker na mesma máquina, publicados por Cloudflare Tunnel. Runbook completo em [`docs/MIGRACAO-SELFHOST.md`](../../docs/MIGRACAO-SELFHOST.md).
 
 **Por que o app saiu da Vercel junto com o banco.** Funções serverless da Vercel abrem TCP direto com o Postgres, e um banco em rede local não é roteável de fora. As saídas usuais não cobrem esse caso: Cloudflare Tunnel só faz TCP genérico via Spectrum (plano pago) — no free tier o cliente precisaria rodar `cloudflared access tcp`, o que serverless não permite; e Tailscale/WireGuard exigem daemon persistente. A alternativa era abrir a porta do Postgres na internet, recusada por expor o banco financeiro com defesa só de senha, e por colocar toda query atravessando a internet.
 
@@ -96,3 +98,17 @@ Evite a conexão direta (`db.<ref>.supabase.co:5432`): ela é IPv6-only sem o ad
 - `JWT_SECRET`: Chave secreta de validação de tokens JWT.
 - `GMAIL_USER` / `GMAIL_APP_PASSWORD`: Credenciais para envio do e-mail SMTP de boas-vindas via Nodemailer.
 - `APP_URL`: URL base pública do sistema para links em e-mails.
+
+---
+
+## 💰 Precisão monetária
+
+**Colunas de dinheiro são `DECIMAL(14,2)`** (migration `20260819190000`). Antes eram `DECIMAL(65,30)` — o padrão do Prisma quando não se declara `@db.Decimal` — e 125 valores em `Saldo` carregavam ruído de ponto flutuante (`8766.299999999999` onde o correto é `8766.30`).
+
+**Dois campos NÃO são dinheiro, apesar do nome:** `Funcionario.trienio` é percentual (`0.03` = 3%, tipo `DECIMAL(5,4)`) e `Meta.valorMeta` também (`25` = 25%, tipo `DECIMAL(5,2)`). Aplicar `(14,2)` no triênio transformaria 1,5% em 2%. Cuidado com a ambiguidade: `FolhaItem.trienio` **é** dinheiro; `Funcionario.trienio` é a alíquota.
+
+**A causa raiz continua aberta.** `lib/folha.ts:42` calcula com `number`, que é float64 — `salarioBase * trienioPerc` gera o ruído antes de tocar o banco. A migration limpou o histórico; o próximo cálculo de folha reintroduz. Corrigir exige aritmética em centavos inteiros ou biblioteca decimal.
+
+**`Decimal` do Prisma chega ao cliente como STRING**, porque é assim que o JSON o representa. `formatCurrency` e `formatPercent` em `lib/utils.ts` aceitam string por isso — são 111 pontos de chamada, e corrigir no formatador cobre todos. Onde o valor for **comparado** ou usado como medida em CSS, converta explicitamente com `Number()`; formatar não basta.
+
+Valor ilegível é exibido como `—`, nunca `0`. Num sistema financeiro, `R$ 0,00` onde o número não pôde ser lido é indistinguível de movimento zero legítimo. Atenção: `Number("")` e `Number(null)` retornam `0`, não `NaN`.
