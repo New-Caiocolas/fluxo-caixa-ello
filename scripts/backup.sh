@@ -3,14 +3,14 @@
 # Backup diário do banco do Fluxo de Caixa (Supabase self-hosted no ZimaOS).
 #
 # Instalação no cron:
-#   0 2 * * * /DATA/fluxo-caixa/scripts/backup.sh >> /DATA/backups/backup.log 2>&1
+#   0 2 * * * /DATA/AppData/fluxo-caixa/scripts/backup.sh >> /DATA/backups/backup.log 2>&1
 #
 # O dump sai de dentro do container `db` porque o Postgres não tem porta
 # publicada no host — e não deve ter.
 
 set -euo pipefail
 
-SUPABASE_DIR="${SUPABASE_DIR:-/DATA/supabase}"
+SUPABASE_DIR="${SUPABASE_DIR:-/DATA/AppData/supabase-novo/docker}"
 DESTINO="${DESTINO:-/DATA/backups}"
 RETENCAO_DIAS="${RETENCAO_DIAS:-30}"
 

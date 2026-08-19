@@ -33,6 +33,23 @@ para a Cloudflare, e o tráfego público volta por ela.
 - `psql` e `pg_dump` na sua máquina, para a migração dos dados
 - Espaço em disco no ZimaOS: reserve ~10 GB (Supabase completo são ~10 containers)
 
+### Particularidades do ZimaOS
+
+Levantadas no ambiente real (ZimaOS em `10.9.74.86`, usuário `caiocolas`) — não
+assuma que um servidor Linux comum se comporta assim:
+
+- **A home do usuário é `/DATA`, pertence ao `root` e não é gravável.** Por isso
+  o diretório de trabalho é `/DATA/AppData/fluxo-caixa`, criado com `sudo` e
+  com dono ajustado. `AppData` é a convenção do ZimaOS para aplicações.
+- **`root` não aceita login por SSH**; conecte com o usuário criado na
+  instalação.
+- **O usuário não nasce no grupo `docker`.** Sem isso, todo comando Docker exige
+  `sudo`. Resolva uma vez e reconecte para valer:
+
+```bash
+sudo usermod -aG docker $USER
+```
+
 ### Confira a versão do Postgres antes de tudo
 
 Restaurar um dump numa versão **anterior** à de origem falha. Rode contra o
@@ -47,51 +64,41 @@ ser igual ou superior.
 
 ---
 
-## 1. Subir o Supabase self-hosted
+## 1. Supabase self-hosted (já instalado)
 
-Por SSH no ZimaOS:
-
-```bash
-git clone --depth 1 https://github.com/supabase/supabase /DATA/supabase-src
-```
+A instalação já existe nesta máquina. Não reinstale — apenas confirme o estado:
 
 ```bash
-mkdir -p /DATA/supabase && cp -r /DATA/supabase-src/docker/* /DATA/supabase/ && cp /DATA/supabase/.env.example /DATA/supabase/.env
+cd /DATA/AppData/supabase-novo/docker && docker compose ps
 ```
 
-Edite `/DATA/supabase/.env`. No mínimo troque **todos** estes — os valores que
-vêm no exemplo são públicos e conhecidos:
-
-| Variável | O que é |
+| Item | Valor confirmado em 2026-08-19 |
 |---|---|
-| `POSTGRES_PASSWORD` | Senha do usuário `postgres`. Anote — vai no `infra/.env`. |
-| `JWT_SECRET` | Segredo interno do Supabase (≠ do JWT da aplicação) |
-| `ANON_KEY` / `SERVICE_ROLE_KEY` | Chaves derivadas do `JWT_SECRET` acima |
-| `DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD` | Login do Studio |
-| `SECRET_KEY_BASE` / `VAULT_ENC_KEY` | Segredos do Realtime/Vault |
+| Diretório do compose | `/DATA/AppData/supabase-novo/docker` |
+| Projeto compose | `supabase` |
+| Rede Docker | `supabase_default` |
+| PostgreSQL | 17.6 |
+| Envoy (API) | porta 8000 do host |
+| Supavisor (pooler) | portas 5432 e 6543 do host |
+| Domínio público | `financeiro.ellolabs.org` |
 
-> As chaves `ANON_KEY` e `SERVICE_ROLE_KEY` precisam ser geradas **a partir**
-> do seu `JWT_SECRET`; o próprio repositório do Supabase documenta o gerador.
-> A aplicação não usa nenhuma das duas, mas os serviços internos do Supabase
-> sim — se ficarem inconsistentes, os containers entram em crash loop.
+> ⚠️ **Existe uma segunda stack do Supabase nesta máquina**, o projeto
+> `supabase-projeto2`, em `/data/compose/2` (criada via Portainer), com
+> containers prefixados `supabase-p2-` nas portas 8010/5433/6544. **Ela não tem
+> relação com este sistema** — tem outro `JWT_SECRET` e rejeita a chave anon do
+> domínio. Confira sempre o prefixo do container antes de rodar qualquer coisa
+> destrutiva: `supabase-db` é a nossa; `supabase-p2-db` não é.
 
-Suba:
+Para identificar qual stack responde por um domínio, sem ler segredo nenhum: a
+chave anon só é aceita pela instalação que a assinou.
 
 ```bash
-cd /DATA/supabase && docker compose up -d
+curl -s -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8000/rest/v1/Filial?select=id" -H "apikey: SUA_ANON_KEY"
 ```
 
-Confirme que subiu tudo e descubra o nome da rede:
+**Não publique a porta do serviço `db` no host.** O app fala com ele pela rede
+interna do Docker; expor só aumentaria a superfície de ataque.
 
-```bash
-docker compose ps && docker network ls | grep -i supabase
-```
-
-Se a rede não se chamar `supabase_default`, anote o nome real — ele vai em
-`SUPABASE_NETWORK` no passo 4.
-
-**Não exponha a porta 5432 do serviço `db` no host.** O app fala com ele pela
-rede interna do Docker; publicar a porta só aumentaria a superfície de ataque.
 
 ---
 
@@ -113,7 +120,7 @@ app e resolve o nome do serviço pelo DNS interno.
 ## 3. Levar o código para o ZimaOS
 
 ```bash
-git clone https://github.com/<sua-conta>/fluxo-caixa-ello /DATA/fluxo-caixa
+git clone https://github.com/<sua-conta>/fluxo-caixa-ello /DATA/AppData/fluxo-caixa
 ```
 
 ---
@@ -121,7 +128,7 @@ git clone https://github.com/<sua-conta>/fluxo-caixa-ello /DATA/fluxo-caixa
 ## 4. Configurar o ambiente da aplicação
 
 ```bash
-cp /DATA/fluxo-caixa/infra/.env.example /DATA/fluxo-caixa/infra/.env
+cp /DATA/AppData/fluxo-caixa/infra/.env.example /DATA/AppData/fluxo-caixa/infra/.env
 ```
 
 Preencha conforme os comentários do arquivo. Os campos que exigem atenção:
@@ -141,11 +148,11 @@ O clone do git não preserva a permissão de execução em toda configuração, 
 garanta primeiro:
 
 ```bash
-chmod +x /DATA/fluxo-caixa/infra/preparar.sh /DATA/fluxo-caixa/scripts/backup.sh
+chmod +x /DATA/AppData/fluxo-caixa/infra/preparar.sh /DATA/AppData/fluxo-caixa/scripts/backup.sh
 ```
 
 ```bash
-cd /DATA/fluxo-caixa/infra && ./preparar.sh
+cd /DATA/AppData/fluxo-caixa/infra && ./preparar.sh
 ```
 
 O script detecta o nome real da rede do Supabase e grava no `.env`, confere se
@@ -164,11 +171,36 @@ texto claro, seriam container reiniciando em loop mais à frente.
 O `migrator` aplica as migrations do Prisma. Rode só ele, ainda sem o app:
 
 ```bash
-cd /DATA/fluxo-caixa/infra && docker compose run --rm migrate
+cd /DATA/AppData/fluxo-caixa/infra && docker compose run --rm migrate
 ```
 
 Ao final o banco novo tem as 13 tabelas **vazias**, com a mesma estrutura da
 produção — porque a fonte de verdade do schema é `prisma/migrations/`.
+
+### 5.1.1 Fechar a API pública antes de carregar dados
+
+O schema acabou de ser criado — e, por padrão do Supabase, as tabelas nasceram
+acessíveis pela API REST pública. Feche isso **agora**, enquanto o banco ainda
+está vazio:
+
+```bash
+docker compose -f /DATA/AppData/supabase-novo/docker/docker-compose.yml cp /DATA/AppData/fluxo-caixa/scripts/blindar-postgrest.sql db:/tmp/blindar.sql
+```
+
+```bash
+docker compose -f /DATA/AppData/supabase-novo/docker/docker-compose.yml exec db psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/blindar.sql
+```
+
+A saída lista as tabelas com `rowsecurity`; todas devem estar `t`.
+
+Confirme de fora, do seu PC — deve responder 401, 403 ou 404, nunca dados:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" "https://financeiro.ellolabs.org/rest/v1/Filial?select=id" -H "apikey: SUA_ANON_KEY"
+```
+
+> Rode este script de novo sempre que uma migration criar tabelas novas. O
+> `alter default privileges` cobre o caso, mas a conferência custa dez segundos.
 
 ### 5.2 Exportar os dados do Supabase gerenciado
 
@@ -197,11 +229,11 @@ scp dados.sql <usuario>@<ip-do-zimaos>:/DATA/
 ```
 
 ```bash
-docker compose -f /DATA/supabase/docker-compose.yml cp /DATA/dados.sql db:/tmp/dados.sql
+docker compose -f /DATA/AppData/supabase-novo/docker/docker-compose.yml cp /DATA/dados.sql db:/tmp/dados.sql
 ```
 
 ```bash
-docker compose -f /DATA/supabase/docker-compose.yml exec db psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/dados.sql
+docker compose -f /DATA/AppData/supabase-novo/docker/docker-compose.yml exec db psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/dados.sql
 ```
 
 O `ON_ERROR_STOP=1` é importante: sem ele o `psql` engole erros e segue,
@@ -210,7 +242,7 @@ e você termina com uma carga parcial parecendo bem-sucedida.
 Apague o dump depois — ele tem os dados financeiros em claro:
 
 ```bash
-rm /DATA/dados.sql && docker compose -f /DATA/supabase/docker-compose.yml exec db rm /tmp/dados.sql
+rm /DATA/dados.sql && docker compose -f /DATA/AppData/supabase-novo/docker/docker-compose.yml exec db rm /tmp/dados.sql
 ```
 
 ### 5.4 Conferir antes de confiar
@@ -256,7 +288,7 @@ A partir daqui há indisponibilidade. Avise quem usa.
 3. **Suba o app no ZimaOS:**
 
 ```bash
-cd /DATA/fluxo-caixa/infra && docker compose up -d --build
+cd /DATA/AppData/fluxo-caixa/infra && docker compose up -d --build
 ```
 
 4. **Acompanhe a subida:**
@@ -291,7 +323,7 @@ pelo menos uma semana de operação normal — é o seu rollback.
 Se algo der errado depois do corte, reverter é rápido porque nada foi destruído:
 
 ```bash
-cd /DATA/fluxo-caixa/infra && docker compose stop app cloudflared
+cd /DATA/AppData/fluxo-caixa/infra && docker compose stop app cloudflared
 ```
 
 Despause o projeto na Vercel. Ela nunca deixou de apontar para o Supabase
@@ -316,7 +348,7 @@ crontab -e
 ```
 
 ```
-0 2 * * * /DATA/fluxo-caixa/scripts/backup.sh >> /DATA/backups/backup.log 2>&1
+0 2 * * * /DATA/AppData/fluxo-caixa/scripts/backup.sh >> /DATA/backups/backup.log 2>&1
 ```
 
 Duas coisas que fazem esse backup valer alguma coisa:
@@ -328,12 +360,50 @@ Duas coisas que fazem esse backup valer alguma coisa:
 
 ---
 
+## 9. Desenvolvimento local contra o banco do ZimaOS
+
+Para rodar `npm run dev` na sua máquina falando com o banco do servidor, sem
+expor nenhuma porta. Abra o túnel e deixe o terminal aberto:
+
+```bash
+ssh -L 5433:localhost:5432 <usuario>@<ip-do-zimaos>
+```
+
+**Atenção ao usuário.** A porta 5432 do host do ZimaOS é do **Supavisor**, o
+pooler — o container `db` não publica porta nenhuma. O Supavisor é multi-tenant
+e exige o usuário no formato `postgres.<tenant>`, diferente do `postgres` puro
+que a aplicação usa por dentro da rede Docker. Pegue o tenant com:
+
+```bash
+grep POOLER_TENANT_ID /DATA/AppData/supabase-novo/docker/.env
+```
+
+No `.env` local (a porta 5433 evita conflito com um Postgres seu, se houver):
+
+```
+DATABASE_URL="postgresql://postgres.<tenant>:<senha>@localhost:5433/postgres?schema=public"
+DIRECT_URL="postgresql://postgres.<tenant>:<senha>@localhost:5433/postgres?schema=public"
+```
+
+A 5432 do Supavisor é modo **session**, que suporta prepared statements e
+advisory locks — então migrations funcionam por aqui. A 6543 é transaction e
+travaria; não use.
+
+> Se a senha tiver caracteres especiais, faça percent-encode na URL (`@` vira
+> `%40`, `#` vira `%23`). Senão o parser corta a string no lugar errado e o erro
+> não diz isso.
+
+⚠️ Lembre que este é o banco de **produção** depois do corte. Para experimentar
+migrations ou testar `db:seed`, use um Postgres local descartável, não o túnel.
+
+---
+
 ## Operação no dia a dia
 
 Atualizar a aplicação depois de um push:
 
 ```bash
-cd /DATA/fluxo-caixa && git pull && cd infra && docker compose up -d --build
+cd /DATA/AppData/fluxo-caixa && git pull && cd infra && docker compose up -d --build
 ```
 
 O `migrate` roda sozinho antes do app a cada `up`, então migrations novas são
@@ -342,11 +412,11 @@ aplicadas na ordem certa.
 Ver logs:
 
 ```bash
-cd /DATA/fluxo-caixa/infra && docker compose logs -f app
+cd /DATA/AppData/fluxo-caixa/infra && docker compose logs -f app
 ```
 
 Abrir um psql no banco:
 
 ```bash
-docker compose -f /DATA/supabase/docker-compose.yml exec db psql -U postgres -d postgres
+docker compose -f /DATA/AppData/supabase-novo/docker/docker-compose.yml exec db psql -U postgres -d postgres
 ```

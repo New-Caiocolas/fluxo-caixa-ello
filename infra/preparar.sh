@@ -2,7 +2,7 @@
 #
 # Verificação antes de subir o app no ZimaOS.
 #
-#   cd /DATA/fluxo-caixa/infra && ./preparar.sh
+#   cd /DATA/AppData/fluxo-caixa/infra && ./preparar.sh
 #
 # Detecta a rede do Supabase, confere se o infra/.env está completo e testa a
 # conexão real com o banco. Existe para as falhas aparecerem aqui, com uma
