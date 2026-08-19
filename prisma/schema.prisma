@@ -90,6 +90,9 @@ model Subgrupo {
 
   grupo       Grupo        @relation(fields: [grupoId], references: [id])
   lancamentos Lancamento[]
+
+  @@index([grupoId])
+
 }
 
 model Lancamento {
@@ -99,7 +102,7 @@ model Lancamento {
   grupoId     Int
   subgrupoId  String?
   descricao   String
-  valor       Decimal
+  valor       Decimal @db.Decimal(14, 2)
   tipo        TipoLancamento
   observacao  String?
   competencia String
@@ -126,10 +129,10 @@ model Saldo {
   id            String   @id @default(cuid())
   filialId      String
   data          DateTime
-  saldoInicial  Decimal  @default(0)
-  saldoFinal    Decimal  @default(0)
-  totalEntradas Decimal  @default(0)
-  totalSaidas   Decimal  @default(0)
+  saldoInicial  Decimal @db.Decimal(14, 2)  @default(0)
+  saldoFinal    Decimal @db.Decimal(14, 2)  @default(0)
+  totalEntradas Decimal @db.Decimal(14, 2)  @default(0)
+  totalSaidas   Decimal @db.Decimal(14, 2)  @default(0)
   competencia   String
 
   filial Filial @relation(fields: [filialId], references: [id])
@@ -143,8 +146,8 @@ model Funcionario {
   filialId    String
   nome        String
   cargo       String
-  salarioBase Decimal
-  trienio     Decimal  @default(0)
+  salarioBase Decimal @db.Decimal(14, 2)
+  trienio     Decimal @db.Decimal(5, 4)  @default(0)
   ativo       Boolean  @default(true)
   admissao    DateTime
   createdAt   DateTime @default(now())
@@ -152,6 +155,9 @@ model Funcionario {
 
   filial Filial      @relation(fields: [filialId], references: [id])
   folhas FolhaItem[]
+
+  @@index([filialId])
+
 }
 
 model Folha {
@@ -161,32 +167,43 @@ model Folha {
   updatedAt   DateTime @updatedAt
 
   itens FolhaItem[]
+
+  // Uma folha por competência. A API faz findFirst({where:{competencia}});
+  // sem esta restrição, duas folhas do mesmo mês fariam a consulta escolher
+  // uma arbitrariamente e a outra viraria dado órfão.
+  @@unique([competencia])
+
 }
 
 model FolhaItem {
   id            String  @id @default(cuid())
   folhaId       String
   funcionarioId String
-  salarioBase   Decimal
-  comissao      Decimal @default(0)
-  trienio       Decimal @default(0)
-  dsr           Decimal @default(0)
-  totalBruto    Decimal
-  inssPatronal  Decimal @default(0)
-  entidades     Decimal @default(0)
-  fgts          Decimal @default(0)
-  totalEncargos Decimal
-  totalPagar    Decimal
+  salarioBase   Decimal @db.Decimal(14, 2)
+  comissao      Decimal @db.Decimal(14, 2) @default(0)
+  trienio       Decimal @db.Decimal(14, 2) @default(0)
+  dsr           Decimal @db.Decimal(14, 2) @default(0)
+  totalBruto    Decimal @db.Decimal(14, 2)
+  inssPatronal  Decimal @db.Decimal(14, 2) @default(0)
+  entidades     Decimal @db.Decimal(14, 2) @default(0)
+  fgts          Decimal @db.Decimal(14, 2) @default(0)
+  totalEncargos Decimal @db.Decimal(14, 2)
+  totalPagar    Decimal @db.Decimal(14, 2)
 
   folha       Folha       @relation(fields: [folhaId], references: [id])
   funcionario Funcionario @relation(fields: [funcionarioId], references: [id])
+
+  // O mesmo funcionário não pode aparecer duas vezes na mesma folha.
+  @@unique([folhaId, funcionarioId])
+  @@index([funcionarioId])
+
 }
 
 model Faturamento {
   id          String   @id @default(cuid())
   filialId    String
   competencia String
-  valorNF     Decimal
+  valorNF     Decimal @db.Decimal(14, 2)
   descricao   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -202,7 +219,7 @@ model Meta {
   nome        String
   descricao   String?
   tipo        String
-  valorMeta   Decimal
+  valorMeta   Decimal @db.Decimal(5, 2)
   operador    String
   grupoRef    Int?
   baseCalculo String
@@ -224,4 +241,9 @@ model AuditLog {
 
   user       User        @relation(fields: [userId], references: [id])
   lancamento Lancamento? @relation(fields: [lancamentoId], references: [id])
+
+  @@index([userId])
+  @@index([lancamentoId])
+  @@index([createdAt])
+
 }
