@@ -5,15 +5,38 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(value: number): string {
+/**
+ * Colunas Decimal do Prisma chegam ao cliente como STRING — é assim que o JSON
+ * as representa. Aceitar string aqui evita "value.toFixed is not a function"
+ * espalhado pelas telas, em vez de exigir conversão correta nos 111 pontos de
+ * chamada destes formatadores.
+ *
+ * Valor ilegível vira "—", e não zero: num sistema financeiro, exibir R$ 0,00
+ * onde o número não pôde ser lido esconde o defeito atrás de um dado
+ * plausível — alguém leria como "não houve movimento".
+ */
+function paraNumero(value: number | string | null | undefined): number | null {
+  // Number("") e Number(null) devolvem 0, não NaN — sem estas guardas, um campo
+  // ausente vira "R$ 0,00" e passa por movimento zero legítimo.
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string" && value.trim() === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function formatCurrency(value: number | string | null | undefined): string {
+  const n = paraNumero(value);
+  if (n === null) return "—";
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
-  }).format(value);
+  }).format(n);
 }
 
-export function formatPercent(value: number, decimals = 1): string {
-  return `${value.toFixed(decimals)}%`;
+export function formatPercent(value: number | string | null | undefined, decimals = 1): string {
+  const n = paraNumero(value);
+  if (n === null) return "—";
+  return `${n.toFixed(decimals)}%`;
 }
 
 export function formatDate(date: Date | string): string {

@@ -101,3 +101,27 @@ describe("mesNome", () => {
     expect(mesNome(12)).toBe("Dezembro");
   });
 });
+
+describe("formatadores com valor vindo da API", () => {
+  // Colunas Decimal do Prisma chegam como string no JSON. Antes disso ser
+  // tratado, o dashboard quebrava com "value.toFixed is not a function" ao
+  // filtrar por uma filial que tivesse meta cadastrada.
+  it("aceita string, como o Decimal do Prisma chega", () => {
+    expect(norm(formatCurrency("1234.56"))).toBe("R$ 1.234,56");
+    expect(formatPercent("25", 0)).toBe("25%");
+    expect(formatPercent("25.00", 0)).toBe("25%");
+  });
+
+  it("continua aceitando number", () => {
+    expect(formatPercent(25, 0)).toBe("25%");
+    expect(norm(formatCurrency(1234.56))).toBe("R$ 1.234,56");
+  });
+
+  it("mostra travessão para valor ilegível, nunca zero", () => {
+    // Zero seria lido como "não houve movimento" — esconder a falha atrás de
+    // um número plausível é pior que admitir que o valor não pôde ser lido.
+    expect(formatCurrency("abc")).toBe("—");
+    expect(formatPercent(NaN)).toBe("—");
+    expect(formatCurrency("")).toBe("—");
+  });
+});

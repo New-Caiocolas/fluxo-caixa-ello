@@ -18,6 +18,9 @@ async function perguntaOculta(q) {
   const stdin = process.stdin;
   const eraRaw = stdin.isRaw;
   if (stdin.setRawMode) stdin.setRawMode(true);
+  // O readline das perguntas anteriores deixa o stdin pausado; sem resume,
+  // nenhum evento 'data' chega e a Promise nunca resolve.
+  stdin.resume();
   return new Promise((resolve) => {
     let v = "";
     const onData = (ch) => {
@@ -43,8 +46,8 @@ const host = (await pergunta(
   "Host do pooler (ex.: aws-1-sa-east-1.pooler.supabase.com): "
 )).trim();
 const usuario = (await pergunta("Usuário (ex.: postgres.abcdefgh): ")).trim();
-const senha = await perguntaOculta("Senha (não será exibida): ");
 rl.close();
+const senha = await perguntaOculta("Senha (não será exibida): ");
 
 if (!host || !usuario || !senha) {
   console.error("Faltou preencher algum campo.");

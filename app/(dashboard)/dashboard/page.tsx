@@ -185,8 +185,10 @@ export default function DashboardPage() {
   useEffect(() => { fetchMetas(); }, [fetchMetas]);
   useEffect(() => { if (aba === "dfc") fetchDFC(); }, [aba, fetchDFC]);
 
-  const metaFluxoLivre = metas.find((m) => m.tipo === "FLUXO_LIVRE" && m.ativa)?.valorMeta ?? META_PADRAO.FLUXO_LIVRE;
-  const metaCustoDireto = metas.find((m) => m.tipo === "CUSTO_DIRETO" && m.ativa)?.valorMeta ?? META_PADRAO.CUSTO_DIRETO;
+  // Number() explícito: valorMeta chega como string (Decimal em JSON) e estes
+  // valores são comparados e usados como largura em CSS, não apenas exibidos.
+  const metaFluxoLivre = Number(metas.find((m) => m.tipo === "FLUXO_LIVRE" && m.ativa)?.valorMeta ?? META_PADRAO.FLUXO_LIVRE);
+  const metaCustoDireto = Number(metas.find((m) => m.tipo === "CUSTO_DIRETO" && m.ativa)?.valorMeta ?? META_PADRAO.CUSTO_DIRETO);
 
   const mesAtual = mesNome(new Date().getMonth() + 1);
   const fluxoAlerta = data && data.kpis.percentFluxoLivre < metaFluxoLivre;
