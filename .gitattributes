@@ -1,0 +1,6 @@
+# Scripts executados no Linux precisam de LF. Gravados a partir do Windows
+# eles saem com CRLF, e o shebang vira "bash" — erro que nao diz o que houve.
+*.sh text eol=lf
+*.sql text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
