@@ -5,12 +5,14 @@ import { Header } from "@/components/layout/Header";
 import { AbaDiarios } from "@/components/lancamentos/AbaDiarios";
 import { AbaFaturamento } from "@/components/lancamentos/AbaFaturamento";
 import { AbaFolha } from "@/components/lancamentos/AbaFolha";
+import { AbaImportar } from "@/components/lancamentos/AbaImportar";
 import { cn } from "@/lib/utils";
 
 const TABS = [
   { id: "diarios", label: "Lançamentos Diários" },
   { id: "faturamento", label: "Faturamento" },
   { id: "folha", label: "Folha de Pagamento" },
+  { id: "importar", label: "Importar Extrato" },
 ] as const;
 
 type Aba = (typeof TABS)[number]["id"];
@@ -46,6 +48,7 @@ export default function LancamentosPage() {
         {aba === "diarios" && <AbaDiarios />}
         {aba === "faturamento" && <AbaFaturamento />}
         {aba === "folha" && <AbaFolha />}
+      {aba === "importar" && <AbaImportar />}
       </div>
     </div>
   );

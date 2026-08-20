@@ -112,3 +112,21 @@ Evite a conexão direta (`db.<ref>.supabase.co:5432`): ela é IPv6-only sem o ad
 **`Decimal` do Prisma chega ao cliente como STRING**, porque é assim que o JSON o representa. `formatCurrency` e `formatPercent` em `lib/utils.ts` aceitam string por isso — são 111 pontos de chamada, e corrigir no formatador cobre todos. Onde o valor for **comparado** ou usado como medida em CSS, converta explicitamente com `Number()`; formatar não basta.
 
 Valor ilegível é exibido como `—`, nunca `0`. Num sistema financeiro, `R$ 0,00` onde o número não pôde ser lido é indistinguível de movimento zero legítimo. Atenção: `Number("")` e `Number(null)` retornam `0`, não `NaN`.
+
+---
+
+## 📥 Importação de extrato OFX
+
+Quarta aba de `/lancamentos`, seguindo a decisão de hub (não criar rota isolada).
+
+**Por que existe.** Em julho/2026 foram digitados 451 lançamentos à mão, num formulário de 8 campos. As descrições (`TARIFA BANCARIA`, `TARIFA PIX`, `BOLETO`, nomes de fornecedores em caixa alta) são texto de extrato bancário sendo transcrito.
+
+**Classificação automática.** Medido na base: 209 de 210 descrições distintas sempre caem no mesmo grupo. `lib/classificador.ts` indexa o histórico por descrição normalizada e sugere grupo/subgrupo. Aferido contra a segunda metade de julho, treinando na primeira: **sugeriu em 62% das linhas, com 100% de acerto**. A cobertura cresce conforme o histórico aumenta.
+
+Nunca inventa classificação: sem base, devolve `null` e a linha vai para revisão. Classificar errado em silêncio é pior que pedir confirmação.
+
+**Deduplicação pelo FITID.** `Lancamento.fitid` guarda o identificador que o banco atribui a cada transação, com índice único. Reimportar o mesmo extrato não duplica. É nulo nos lançamentos digitados à mão — o `UNIQUE` do Postgres aceita múltiplos NULLs.
+
+**O fluxo é sempre prévia → revisão → gravação.** `POST /api/importar` só lê e sugere; `PUT` grava. Gravar no upload pouparia um passo, mas colocaria dinheiro no caixa sem conferência, e o erro só apareceria semanas depois.
+
+**`lib/ofx.ts` é parser próprio**, sem dependência: trata OFX 1.x (SGML, tags que não fecham) e 2.x (XML) com o mesmo padrão, e decodifica ISO-8859-1 — os bancos brasileiros raramente emitem UTF-8, e lido errado "MANUTENÇÃO" corrompe justamente a chave usada para classificar.
