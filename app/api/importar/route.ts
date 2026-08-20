@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
   }
 
+  try {
   const form = await req.formData();
   const arquivo = form.get("arquivo");
   const filialId = String(form.get("filialId") ?? "");
@@ -86,6 +87,14 @@ export async function POST(req: NextRequest) {
     classificados: linhas.filter((l) => l.sugestao && !l.duplicado).length,
     linhas,
   });
+  } catch (e) {
+    // Sem este catch a rota devolvia 500 com CORPO VAZIO, e o cliente quebrava
+    // em `r.json()` com "Unexpected end of JSON input" — mensagem que não diz
+    // nada a quem está tentando importar.
+    console.error("[importar] falha na prévia:", e);
+    const msg = e instanceof Error ? e.message : "Erro desconhecido";
+    return NextResponse.json({ error: `Falha ao ler o extrato: ${msg}` }, { status: 500 });
+  }
 }
 
 interface LinhaConfirmada {
@@ -116,6 +125,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
   }
 
+  try {
   const { filialId, linhas } = (await req.json()) as {
     filialId?: string;
     linhas?: LinhaConfirmada[];
@@ -178,4 +188,11 @@ export async function PUT(req: NextRequest) {
     criados: resultado.count,
     ignorados: linhas.length - resultado.count,
   });
+  } catch (e) {
+    // Mesmo motivo do POST: 500 com corpo vazio quebra o cliente em r.json()
+    // com "Unexpected end of JSON input", escondendo a causa real.
+    console.error("[importar] falha ao gravar:", e);
+    const msg = e instanceof Error ? e.message : "Erro desconhecido";
+    return NextResponse.json({ error: `Falha ao importar: ${msg}` }, { status: 500 });
+  }
 }

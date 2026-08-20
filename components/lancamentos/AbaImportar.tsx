@@ -11,7 +11,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 interface Sugestao {
   grupoId: number;
   subgrupoId: string | null;
-  confianca: "alta" | "media";
+  confianca: "alta" | "media" | "baixa";
   baseadoEm: string;
   ambiguo: boolean;
 }
@@ -116,6 +116,10 @@ export function AbaImportar() {
 
   const novas = linhas?.filter((l) => !l.duplicado) ?? [];
   const semClassificacao = novas.filter((l) => !l.grupoId).length;
+  // Sugestões por semelhança de nome merecem destaque próprio: são a maior
+  // parte do que o sistema acerta, e também a maior parte do que ele pode
+  // errar. Conferir 100 linhas marcadas é mais rápido que conferir 247.
+  const porSemelhanca = novas.filter((l) => l.sugestao?.confianca === "baixa").length;
   const duplicadas = (linhas?.length ?? 0) - novas.length;
 
   return (
@@ -167,6 +171,11 @@ export function AbaImportar() {
                 <Copy size={14} /> {duplicadas} já importada(s)
               </span>
             )}
+            {porSemelhanca > 0 && (
+              <span className="rounded-lg bg-sky-50 text-sky-800 px-3 py-2">
+                {porSemelhanca} sugerida(s) por semelhança — confira
+              </span>
+            )}
             {semClassificacao > 0 && (
               <span className="flex items-center gap-1 rounded-lg bg-amber-50 text-amber-800 px-3 py-2">
                 <AlertTriangle size={14} /> {semClassificacao} sem categoria
@@ -203,6 +212,11 @@ export function AbaImportar() {
                       {!l.duplicado && l.sugestao?.ambiguo && (
                         <span className="ml-2 text-xs text-amber-700">
                           histórico divergente — confira
+                        </span>
+                      )}
+                      {!l.duplicado && !l.sugestao?.ambiguo && l.sugestao?.confianca === "baixa" && (
+                        <span className="ml-2 text-xs text-sky-700">
+                          ≈ semelhante a &ldquo;{l.sugestao.baseadoEm}&rdquo;
                         </span>
                       )}
                     </td>
