@@ -57,24 +57,25 @@ export async function POST(req: NextRequest) {
       take: 5000,
     }),
     prisma.lancamento.findMany({
-      where: { fitid: { in: transacoes.map((t) => t.fitid) } },
-      select: { fitid: true },
+      where: { chaveImportacao: { in: transacoes.map((t) => t.chave) } },
+      select: { chaveImportacao: true },
     }),
   ]);
 
   const indice = construirIndice(historico);
-  const duplicados = new Set(jaImportados.map((l) => l.fitid));
+  const duplicados = new Set(jaImportados.map((l) => l.chaveImportacao));
 
   const linhas = transacoes.map((t) => {
     const s = sugerir(indice, t.descricao);
     return {
+      chave: t.chave,
       fitid: t.fitid,
       data: t.data.toISOString(),
       competencia: getCompetencia(t.data),
       valor: t.valor,
       tipo: t.tipo,
       descricao: t.descricao,
-      duplicado: duplicados.has(t.fitid),
+      duplicado: duplicados.has(t.chave),
       sugestao: s,
     };
   });
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
 }
 
 interface LinhaConfirmada {
-  fitid: string;
+  chave: string;
   data: string;
   valor: number;
   tipo: "ENTRADA" | "SAIDA";
@@ -128,7 +129,7 @@ export async function PUT(req: NextRequest) {
   // mas não para valor, tipo ou grupo: esses definem o caixa e precisam existir.
   const invalida = linhas.find(
     (l) =>
-      !l.fitid ||
+      !l.chave ||
       !l.descricao ||
       !Number.isFinite(l.valor) ||
       l.valor <= 0 ||
@@ -137,7 +138,7 @@ export async function PUT(req: NextRequest) {
   );
   if (invalida) {
     return NextResponse.json(
-      { error: `Linha inválida: ${invalida.descricao || invalida.fitid}` },
+      { error: `Linha inválida: ${invalida.descricao || invalida.chave}` },
       { status: 400 }
     );
   }
@@ -167,7 +168,7 @@ export async function PUT(req: NextRequest) {
         tipo: l.tipo,
         observacao: l.observacao || null,
         userId: user.userId,
-        fitid: l.fitid,
+        chaveImportacao: l.chave,
       };
     }),
     skipDuplicates: true,

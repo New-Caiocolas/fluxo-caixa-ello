@@ -17,6 +17,7 @@ interface Sugestao {
 }
 
 interface Linha {
+  chave: string;
   fitid: string;
   data: string;
   competencia: string;
@@ -186,7 +187,7 @@ export function AbaImportar() {
               <tbody className="divide-y divide-gray-100">
                 {linhas.map((l, i) => (
                   <tr
-                    key={l.fitid}
+                    key={l.chave}
                     className={
                       l.duplicado
                         ? "bg-gray-50 text-gray-400"
@@ -214,11 +215,11 @@ export function AbaImportar() {
                       {formatCurrency(l.valor)}
                     </td>
                     <td className="px-3 py-2">
-                      <label className="sr-only" htmlFor={`grupo-${l.fitid}`}>
+                      <label className="sr-only" htmlFor={`grupo-${l.chave}`}>
                         Categoria de {l.descricao}
                       </label>
                       <select
-                        id={`grupo-${l.fitid}`}
+                        id={`grupo-${l.chave}`}
                         disabled={l.duplicado}
                         value={l.grupoId ?? ""}
                         onChange={(e) => {

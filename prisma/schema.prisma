@@ -107,11 +107,14 @@ model Lancamento {
   observacao  String?
   competencia String
 
-  /// Identificador da transação no extrato OFX (FITID). Preenchido só em
-  /// lançamentos importados; nulo nos digitados à mão. O índice único impede
-  /// que reimportar o mesmo extrato duplique a movimentação — sem ele, a
-  /// duplicata só apareceria depois, como divergência de saldo.
-  fitid       String?  @unique
+  /// Chave de deduplicação do extrato importado. Nula nos lançamentos
+  /// digitados à mão.
+  ///
+  /// NÃO é o FITID puro: medido em extrato real da Caixa, 65 transações
+  /// traziam só 53 FITIDs distintos (o campo espelha o CHECKNUM). Deduplicar
+  /// por ele descartaria 12 lançamentos em silêncio. A chave combina FITID,
+  /// data, valor e descrição. Ver `montarChave` em lib/ofx.ts.
+  chaveImportacao String? @unique
   userId      String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

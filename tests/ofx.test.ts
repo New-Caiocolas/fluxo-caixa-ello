@@ -92,3 +92,50 @@ describe("decodificarOFX", () => {
     expect(decodificarOFX(buf)).toContain("MANUTENÇÃO");
   });
 });
+
+describe("chave de deduplicação", () => {
+  // Extrato real da Caixa: 65 transações, só 53 FITIDs distintos, porque o
+  // campo espelha o CHECKNUM. Deduplicar pelo FITID puro descartaria 12
+  // lançamentos em silêncio — o pior modo de falha possível num caixa.
+  const fitidRepetido = `<STMTTRN><FITID>424065<DTPOSTED>20260803<TRNAMT>-40038.37<MEMO>FOL PAGTO</STMTTRN>
+<STMTTRN><FITID>424065<DTPOSTED>20260804<TRNAMT>-22.50<MEMO>DEB TARIFA</STMTTRN>
+<STMTTRN><FITID>424065<DTPOSTED>20260805<TRNAMT>-489.50<MEMO>FOL PAGTO</STMTTRN>`;
+
+  it("mantém transações distintas que compartilham o mesmo FITID", () => {
+    const t = parseOFX(fitidRepetido);
+    expect(t).toHaveLength(3);
+    expect(new Set(t.map((x) => x.fitid)).size).toBe(1);
+    expect(new Set(t.map((x) => x.chave)).size).toBe(3);
+  });
+
+  it("gera a mesma chave ao reprocessar o mesmo arquivo", () => {
+    // É isso que faz a reimportação ser idempotente.
+    const a = parseOFX(fitidRepetido).map((x) => x.chave);
+    const b = parseOFX(fitidRepetido).map((x) => x.chave);
+    expect(a).toEqual(b);
+  });
+
+  it("preserva duas transações realmente idênticas no mesmo dia", () => {
+    // Uma tarifa cobrada duas vezes no mesmo dia existe de verdade; colapsar
+    // as duas em uma esconderia dinheiro que saiu.
+    const iguais = `<STMTTRN><FITID>300726<DTPOSTED>20260803<TRNAMT>-1.00<MEMO>TARIFA BANCARIA TRANSF PGTO PIX</STMTTRN>
+<STMTTRN><FITID>300726<DTPOSTED>20260803<TRNAMT>-1.00<MEMO>TARIFA BANCARIA TRANSF PGTO PIX</STMTTRN>`;
+    const t = parseOFX(iguais);
+    expect(t).toHaveLength(2);
+    expect(t[0].chave).not.toBe(t[1].chave);
+  });
+});
+
+describe("particularidades por banco", () => {
+  it("aceita vírgula decimal, como o Bradesco emite", () => {
+    const t = parseOFX("<STMTTRN><FITID>N1014A<DTPOSTED>20260803<TRNAMT>7942,58<MEMO>LIQUIDACAO</STMTTRN>");
+    expect(t[0].valor).toBe(7942.58);
+  });
+
+  it("desfaz entidade HTML no MEMO", () => {
+    // O Bradesco escreve "&amp;" no nome do favorecido; sem desfazer, a
+    // descrição gravada fica diferente da que a pessoa vê no extrato.
+    const t = parseOFX("<STMTTRN><FITID>N10864<DTPOSTED>20260807<TRNAMT>-1549,35<MEMO>PIX ENVIADO DES: VILAS BOAS, BARRETO &amp; 07/08</STMTTRN>");
+    expect(t[0].descricao).toBe("PIX ENVIADO DES: VILAS BOAS, BARRETO & 07/08");
+  });
+});

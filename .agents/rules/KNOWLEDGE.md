@@ -125,7 +125,11 @@ Quarta aba de `/lancamentos`, seguindo a decisão de hub (não criar rota isolad
 
 Nunca inventa classificação: sem base, devolve `null` e a linha vai para revisão. Classificar errado em silêncio é pior que pedir confirmação.
 
-**Deduplicação pelo FITID.** `Lancamento.fitid` guarda o identificador que o banco atribui a cada transação, com índice único. Reimportar o mesmo extrato não duplica. É nulo nos lançamentos digitados à mão — o `UNIQUE` do Postgres aceita múltiplos NULLs.
+**Deduplicação NÃO usa o FITID puro.** Ele deveria ser único por transação, e no Bradesco é (247/247 distintos). Na Caixa, não: o campo espelha o `CHECKNUM`, e um extrato real de 65 transações trazia só **53 FITIDs distintos** — `424065` aparecia cinco vezes com valores e datas diferentes, e duas transações vinham com FITID `0`. Um índice único sobre ele teria descartado **12 lançamentos em silêncio**.
+
+`Lancamento.chaveImportacao` guarda `FITID|data|±valor|descrição`, com sufixo `#n` quando a mesma combinação se repete no arquivo (uma tarifa cobrada duas vezes no mesmo dia existe de verdade). Confirmado nos dois bancos: 65/65 e 247/247 chaves distintas. Nulo nos lançamentos manuais — o `UNIQUE` do Postgres aceita múltiplos NULLs.
+
+**Diferenças por banco, medidas nos arquivos reais:** o Bradesco usa **vírgula decimal** (`7942,58`) e escapa `&` como `&amp;` no MEMO. A Caixa traz apenas **10 descrições distintas em 65 transações** (`CRE PIX CH`, `DEB PIX CH`, `FOL PAGTO`…), contra 135 em 247 do Bradesco — a classificação automática rende muito menos ali, porque o memo quase não carrega informação.
 
 **O fluxo é sempre prévia → revisão → gravação.** `POST /api/importar` só lê e sugere; `PUT` grava. Gravar no upload pouparia um passo, mas colocaria dinheiro no caixa sem conferência, e o erro só apareceria semanas depois.
 

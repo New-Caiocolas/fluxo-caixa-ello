@@ -9,13 +9,15 @@
  * Trata as duas gerações do formato:
  *   OFX 1.x — SGML, com tags que não fecham (`<MEMO>TEXTO` e ponto final)
  *   OFX 2.x — XML bem formado
- *
- * O regex extrai até a próxima tag ou fim de linha, então funciona nos dois.
  */
 
 export interface TransacaoOFX {
-  /** Identificador único da transação no banco. Base da deduplicação. */
+  /** FITID como veio do banco. Guardado para referência, NÃO para deduplicar. */
   fitid: string;
+  /**
+   * Chave de deduplicação. Ver `montarChave` — o FITID sozinho não serve.
+   */
+  chave: string;
   /** Meia-noite UTC: o app formata datas com getUTC*, e converter para o fuso
    *  local deslocaria o dia de lançamentos feitos de madrugada. */
   data: Date;
@@ -39,10 +41,23 @@ export function decodificarOFX(buffer: Buffer): string {
   return buffer.toString(utf8 ? "utf8" : "latin1");
 }
 
+/** O Bradesco escapa `&` como `&amp;` no MEMO; sem desfazer, a descrição
+ *  gravada fica diferente da que a pessoa vê no extrato. */
+function decodificarEntidades(s: string): string {
+  return s
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    // &amp; por último: antes, desfaria o escape duplo de "&amp;lt;"
+    .replace(/&amp;/gi, "&");
+}
+
 function tag(bloco: string, nome: string): string | null {
   // [^<\r\n]* para em "<" (OFX 2.x, tag fechada) ou na quebra de linha
   // (OFX 1.x, tag aberta) — cobre as duas gerações com um padrão só.
-  const m = bloco.match(new RegExp(`<${nome}>([^<\r\n]*)`, "i"));
+  const m = bloco.match(new RegExp(`<${nome}>([^<\\r\\n]*)`, "i"));
   return m ? m[1].trim() : null;
 }
 
@@ -55,9 +70,28 @@ function paraData(bruto: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * Chave de deduplicação.
+ *
+ * O FITID deveria ser único por transação, e no Bradesco é. Na Caixa, não:
+ * ele espelha o CHECKNUM, e num extrato real de 65 transações havia só 53
+ * valores distintos — `424065` aparecia cinco vezes com valores e datas
+ * diferentes, e duas transações traziam FITID `0`.
+ *
+ * Deduplicar pelo FITID puro descartaria 12 das 65 sem avisar, deixando o
+ * caixa com um valor plausível e errado. Por isso a chave combina FITID, data,
+ * valor e descrição — que juntos identificam a transação nos dois bancos.
+ */
+function montarChave(t: Omit<TransacaoOFX, "chave">): string {
+  const dia = t.data.toISOString().slice(0, 10);
+  const sinal = t.tipo === "SAIDA" ? "-" : "+";
+  return `${t.fitid}|${dia}|${sinal}${t.valor.toFixed(2)}|${t.descricao}`;
+}
+
 export function parseOFX(conteudo: string): TransacaoOFX[] {
   const blocos = conteudo.match(/<STMTTRN>[\s\S]*?<\/STMTTRN>/gi) ?? [];
   const transacoes: TransacaoOFX[] = [];
+  const vistas = new Map<string, number>();
 
   for (const bloco of blocos) {
     const fitid = tag(bloco, "FITID");
@@ -66,22 +100,34 @@ export function parseOFX(conteudo: string): TransacaoOFX[] {
     if (!fitid || !dtposted || !trnamt) continue;
 
     const data = paraData(dtposted);
-    // Alguns bancos usam vírgula decimal mesmo em OFX.
+    // O Bradesco emite valor com vírgula decimal mesmo em OFX.
     const valor = Number(trnamt.replace(",", "."));
     if (!data || !Number.isFinite(valor) || valor === 0) continue;
 
     // MEMO costuma ser mais descritivo que NAME; quando falta, NAME serve.
-    const descricao = (tag(bloco, "MEMO") ?? tag(bloco, "NAME") ?? "")
-      .replace(/\s+/g, " ")
-      .trim();
+    const descricao =
+      decodificarEntidades(tag(bloco, "MEMO") ?? tag(bloco, "NAME") ?? "")
+        .replace(/\s+/g, " ")
+        .trim() || "(sem descrição)";
 
-    transacoes.push({
+    const base = {
       fitid,
       data,
       valor: Math.abs(valor),
-      tipo: valor < 0 ? "SAIDA" : "ENTRADA",
-      descricao: descricao || "(sem descrição)",
-    });
+      tipo: (valor < 0 ? "SAIDA" : "ENTRADA") as "SAIDA" | "ENTRADA",
+      descricao,
+    };
+
+    // Duas transações realmente idênticas no mesmo dia (mesma tarifa cobrada
+    // duas vezes, por exemplo) existem de verdade. O sufixo mantém as duas,
+    // e é estável enquanto o banco exportar na mesma ordem — o que é o caso
+    // quando se reexporta o mesmo período.
+    let chave = montarChave(base);
+    const repeticao = (vistas.get(chave) ?? 0) + 1;
+    vistas.set(chave, repeticao);
+    if (repeticao > 1) chave = `${chave}#${repeticao}`;
+
+    transacoes.push({ ...base, chave });
   }
 
   return transacoes;
