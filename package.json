@@ -6,6 +6,7 @@
     "dev": "next dev -H 0.0.0.0",
     "build": "node scripts/migrate-deploy.mjs && prisma generate && next build",
     "build:docker": "prisma generate && next build",
+    "senior:build": "node senior/build.mjs",
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
